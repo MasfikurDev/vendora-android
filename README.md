@@ -2,7 +2,7 @@
 
 Offline-first Android shop management for owners who operate one or more businesses.
 
-> **Status:** Project setup and architecture planning. The Android application scaffold has not yet been generated or verified to build.
+> **Status:** Minimal Kotlin + Jetpack Compose app scaffold added on `feat/android-bootstrap`. CI has been configured, but the build has not yet been observed running successfully. The Gradle wrapper is not included yet.
 
 ## Product goals
 
@@ -13,16 +13,16 @@ Offline-first Android shop management for owners who operate one or more busines
 - Support configurable retail business types without forcing every business into the same workflow.
 - Make AI optional and read-only initially; ordinary business operations must never depend on an AI service.
 
-## Planned technology
+## Technology baseline
 
 - Kotlin, Jetpack Compose, Material 3
-- Room / SQLite for local persistence
+- Room / SQLite planned for local persistence
 - Coroutines and Flow
-- Repository-based data access and MVVM presentation
+- Repository-based data access and MVVM as features are added
 - Unit, database, and UI tests
 - GitHub Actions for build and test checks
 
-Exact dependency versions and module boundaries will be finalized against the generated Android project and documented in architecture decisions. Avoid creating a large multi-module structure before there is a demonstrated need.
+Dependency versions are centralized in `gradle/libs.versions.toml`. Keep the initial app small; introduce architecture packages and additional libraries when the first feature needs them.
 
 ## Initial scope
 
@@ -48,16 +48,16 @@ Staff permissions, multi-device sync, cloud services, forecasting, and specializ
 - Never commit credentials, signing keys, private API keys, or real customer data.
 - AI output is untrusted input. Validate tool arguments and permissions, and calculate financial results in application code.
 
-## Getting started
+## Build and test
 
-The native Android project scaffold is the next setup step. Once Gradle files are present, validate locally on Windows with:
+The GitHub Actions workflow currently installs Gradle 8.13 and runs:
 
-```powershell
-.\gradlew.bat assembleDebug
-.\gradlew.bat testDebugUnitTest
+```shell
+gradle --no-daemon assembleDebug
+gradle --no-daemon testDebugUnitTest
 ```
 
-These commands are not expected to work until the Android project and Gradle wrapper have been generated.
+The standard Gradle wrapper files are not in this commit yet, so these Windows commands are **not available until the wrapper is added**. Do not report the project as locally build-verified until the actual build and tests pass.
 
 ## Workflow
 
@@ -65,7 +65,7 @@ These commands are not expected to work until the Android project and Gradle wra
 - Use short-lived branches such as `feat/shop-switcher`.
 - Use conventional commit messages, for example `feat: add shop switching`.
 - Run relevant tests before opening a pull request.
-- See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and [architecture decisions](docs/decisions/README.md).
+- See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and [architecture principles](docs/architecture/principles.md).
 
 ## License
 
