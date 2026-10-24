@@ -2,32 +2,33 @@
 
 Offline-first Android shop management for owners who operate one or more businesses.
 
-> **Status:** Native Kotlin + Jetpack Compose scaffold is in place. The Gradle 8.13 wrapper is committed, and wrapper-based CI has passed on `main`. PR #8 still needs branch synchronization and a passing check on its updated head before it can be merged. No shop-management features have been implemented yet.
+> **Current status (2026-10-24):** Early implementation, not production-ready. The app has a Kotlin + Jetpack Compose shell, local shop creation/switching, and shop-scoped product storage implemented on the active feature branch. Product storage currently uses JSON in SharedPreferences; Room/SQLite migration, a complete inventory UI, and end-to-end business workflows are still outstanding. Check [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the authoritative snapshot and history.
 
 ## Product goals
 
-- Manage multiple shops under one owner account, with strict shop-scoped data access.
+- Manage multiple shops under one owner, with strict shop-scoped data access.
 - Work reliably offline; local storage is the source of truth.
 - Track products, purchases, stock movements, sales, returns, expenses, and reports.
 - Keep financial calculations deterministic and auditable.
 - Support configurable retail business types without forcing every business into the same workflow.
-- Make AI optional and read-only initially; ordinary business operations must never depend on an AI service.
+- Make AI optional; ordinary business operations must never depend on an AI service.
 
 ## Technology baseline
 
 - Kotlin, Jetpack Compose, Material 3
-- Room / SQLite for local persistence
-- Coroutines and Flow
-- Repository-based data access and MVVM as features are added
-- Unit, database, and UI tests
-- GitHub Actions for build and test checks
+- Android Gradle Plugin and Kotlin versions in `gradle/libs.versions.toml`
+- JDK 17, Android SDK 36
+- GitHub Actions: debug APK build and JVM unit tests
+- **Current persistence:** SharedPreferences + JSON for shops and products
+- **Target persistence:** Room/SQLite with explicit migrations, introduced as a focused migration
+- Coroutines/Flow, repository boundaries, and lifecycle-aware state as implementation evolves
 
-Dependency versions are centralized in `gradle/libs.versions.toml`. Keep the initial app small; introduce architecture packages and additional libraries when the first feature needs them.
+Do not describe planned technologies as already implemented. Keep the app small and add architecture only when a feature needs it.
 
-## Initial scope
+## Product scope
 
-1. Shop creation and shop switching
-2. Product catalog
+1. Shop creation and switching
+2. Shop-scoped product catalog and inventory
 3. Audited stock movement ledger
 4. Purchases, sales, and returns
 5. Expenses, profitability, and reports
@@ -38,25 +39,18 @@ Staff permissions, multi-device sync, cloud services, forecasting, and specializ
 
 ## Engineering rules
 
-- Store money as integer minor units (for example, poisha), never floating-point currency.
-- Persist timestamps consistently and make time-zone display decisions explicit.
+- Store money as integer minor units (poisha), never floating-point currency.
 - Record stock changes as auditable movements; do not silently overwrite inventory history.
 - Use transactions for operations that update a sale and stock together.
 - Snapshot relevant prices and costs on transaction lines so historical reports remain meaningful.
 - Include shop ownership/scope in relevant data access paths and tests.
-- Use explicit Room migrations and test them.
+- Use explicit Room migrations and test them when Room is introduced.
 - Never commit credentials, signing keys, private API keys, or real customer data.
 - AI output is untrusted input. Validate tool arguments and permissions, and calculate financial results in application code.
 
-## Requirements
-
-- JDK 17
-- Android SDK platform 36 and build-tools 36.0.0
-- Gradle 8.13 (downloaded automatically by the committed Gradle wrapper)
-
 ## Build and test
 
-From the repository root:
+Requirements: JDK 17, Android SDK platform 36/build-tools 36.0.0, and the committed Gradle wrapper (Gradle 8.13).
 
 **Windows PowerShell**
 ```powershell
@@ -70,15 +64,18 @@ From the repository root:
 ./gradlew testDebugUnitTest
 ```
 
-CI currently builds the debug APK and runs JVM unit tests. The instrumentation smoke test exists but is not yet run by CI because an Android emulator job has not been configured.
+CI builds a debug APK and runs JVM unit tests. Instrumentation tests are present in the scaffold but are not currently run by CI. A passing CI run proves the configured build/tests pass; it does not prove the app is production-ready.
 
-## Workflow
+## Git and release workflow
 
 - Keep `main` buildable.
-- Use short-lived branches such as `feat/shop-switcher`.
-- Use conventional commit messages, for example `feat: add shop switching`.
-- Run relevant tests before opening a pull request.
-- See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and [architecture principles](docs/architecture/principles.md).
+- Use focused short-lived feature/documentation branches and open pull requests.
+- Pushes to branches run CI; pull requests targeting `main` run checks.
+- Only a successful push to `main` creates an automated beta prerelease. These are **debug APK beta builds**, not signed production releases.
+- Production releases require a separately planned, signed release process and explicit version/tag policy.
+- Do not merge pull requests without explicit authorization from the repository owner.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), and [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
 
 ## License
 
