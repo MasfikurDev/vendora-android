@@ -20,20 +20,30 @@ class ShopStore(context: Context) {
             val array = JSONArray(encoded)
             buildList {
                 for (index in 0 until array.length()) {
-                    val item = array.getJSONObject(index)
-                    add(
-                        Shop(
-                            id = item.getString("id"),
-                            name = item.getString("name"),
-                            businessType = item.getString("businessType"),
-                        )
-                    )
+                    val item = array.optJSONObject(index) ?: continue
+                    val id = item.optString("id").trim()
+                    val name = item.optString("name").trim()
+                    val businessType = item.optString("businessType").trim()
+                    if (id.isNotEmpty() && name.isNotEmpty() && businessType.isNotEmpty()) {
+                        add(Shop(id = id, name = name, businessType = businessType))
+                    }
                 }
             }
         }.getOrDefault(emptyList())
     }
 
-    fun getActiveShopId(): String? = preferences.getString(KEY_ACTIVE_SHOP_ID, null)
+    /** Return a valid selection, repairing a stale saved ID when necessary. */
+    fun getActiveShopId(): String? {
+        val shops = getShops()
+        if (shops.isEmpty()) {
+            preferences.edit().remove(KEY_ACTIVE_SHOP_ID).apply()
+            return null
+        }
+
+        val savedId = preferences.getString(KEY_ACTIVE_SHOP_ID, null)
+        if (savedId != null && shops.any { it.id == savedId }) return savedId
+        return shops.first().id.also(::setActiveShopId)
+    }
 
     fun saveShops(shops: List<Shop>) {
         val array = JSONArray()
@@ -45,18 +55,33 @@ class ShopStore(context: Context) {
                     .put("businessType", shop.businessType)
             )
         }
-        preferences.edit().putString(KEY_SHOPS, array.toString()).apply()
+
+        val editor = preferences.edit().putString(KEY_SHOPS, array.toString())
+        val activeId = preferences.getString(KEY_ACTIVE_SHOP_ID, null)
+        if (activeId != null && shops.none { it.id == activeId }) {
+            editor.remove(KEY_ACTIVE_SHOP_ID)
+        }
+        editor.apply()
     }
 
     fun setActiveShopId(id: String) {
+        require(getShops().any { it.id == id }) { "Choose an existing shop." }
         preferences.edit().putString(KEY_ACTIVE_SHOP_ID, id).apply()
     }
 
     fun createShop(name: String, businessType: String): Shop {
+        val normalizedName = name.trim()
+        val normalizedType = businessType.trim()
+        require(normalizedName.isNotEmpty()) { "Enter a shop name." }
+        require(normalizedType.isNotEmpty()) { "Choose a business type." }
+        require(getShops().none { it.name.equals(normalizedName, ignoreCase = true) }) {
+            "A shop with this name already exists."
+        }
+
         val shop = Shop(
             id = UUID.randomUUID().toString(),
-            name = name.trim(),
-            businessType = businessType,
+            name = normalizedName,
+            businessType = normalizedType,
         )
         saveShops(getShops() + shop)
         setActiveShopId(shop.id)
