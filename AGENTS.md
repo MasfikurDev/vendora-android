@@ -7,6 +7,16 @@ These instructions apply to the whole repository unless a closer `AGENTS.md` ove
 - Keep changes focused on the current issue; do not scaffold unrelated features.
 - Confirm the Android Gradle Plugin, Kotlin, Compose, Room, and SDK versions from the project files rather than guessing.
 - Explain the intended change and relevant trade-offs before broad architectural changes.
+- Check the active branch and pull requests: do not assume work on a PR branch is already present on `main`.
+
+## Agent workflow and handoff
+- Follow [the AI agent worklog and troubleshooting guide](docs/AI_AGENT_WORKLOG.md) for verified repository lessons, CI verification, and handoff expectations.
+- Make focused changes on a short-lived branch and open/update a pull request for review.
+- Never merge a pull request without explicit repository-owner approval.
+- Verify CI against the exact latest PR head SHA. Do not infer a PR check from another branch's run.
+- Report precisely which commands/checks were run and their results. Never claim a build, test, deployment, or integration succeeded unless the result was observed.
+- When source, project status, architecture, CI, or release behavior changes, update relevant documentation in the same change. Preserve a dated transition history where old statements could otherwise be confusing.
+- When blocked, record the exact error, affected step, branch/SHA, and verified next action. Do not invent fixes or expose credentials.
 
 ## Architecture
 - Keep the app offline-first. The local database is the source of truth.
