@@ -38,12 +38,20 @@ This document is the status ledger for the repository. Update it when implementa
 
 1. The code and current GitHub workflow are authoritative for what is implemented.
 2. The README summarizes the current product and engineering status; this file records more detail and transitions.
-3. Architecture principles and product scope describe intended constraints, not proof that the corresponding feature exists.
-4. Mark a planned item as implemented only after code and relevant tests exist.
-5. Record observed CI results with a run link; never infer success from a commit alone.
-6. If a document conflicts with this snapshot, correct it in the same change that discovers the conflict and add a history entry below.
+3. `AGENTS.md` and `docs/AI_AGENT_WORKLOG.md` define agent workflow and record verified troubleshooting lessons.
+4. Architecture principles and product scope describe intended constraints, not proof that the corresponding feature exists.
+5. Mark a planned item as implemented only after code and relevant tests exist.
+6. Record observed CI results with a run link; never infer success from a commit alone.
+7. If a document conflicts with this snapshot, correct it in the same change that discovers the conflict and add a history entry below.
 
 ## Transition history
+
+### 2026-10-24 — AI agent guidance and troubleshooting handoff added
+
+- Expanded `AGENTS.md` with explicit branch/ref awareness, PR review boundaries, exact-SHA CI verification, truthful test reporting, and documentation maintenance rules.
+- Added [AI Agent Worklog and Troubleshooting](AI_AGENT_WORKLOG.md) to capture verified Vendora-specific lessons, including stale README status, the interim SharedPreferences/JSON implementation, debug beta versus production release distinctions, and the gap between JVM tests and instrumentation coverage.
+- Included a repeatable failure-triage protocol and session-handoff template.
+- Kept unrelated OpenCode/OpenRouter and Vercel incidents out of Vendora's troubleshooting history because they are not verified as incidents in this repository.
 
 ### 2026-10-24 — CI/release policy clarified
 
