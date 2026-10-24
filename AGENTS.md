@@ -48,3 +48,9 @@ These instructions apply to the whole repository unless a closer `AGENTS.md` ove
 - Do not claim a build or test passed unless its result was observed.
 - Keep accessibility, small-screen layouts, loading/empty/error states, and offline behavior in mind.
 - Never commit credentials, keystores, customer data, or generated local build files.
+
+## Feature builds and release documentation
+
+- Feature branches may publish branch-specific GitHub prereleases after a successful **push-triggered** build and unit-test run. Pull-request-triggered runs validate the change but should not publish releases.
+- A successful push to `main` uses the separate beta-release path. Feature previews and beta builds are debug APKs, not signed production releases.
+- When changing workflow behavior, update README/status/worklog documentation in the same branch. Record exact commit SHA and CI run links; never infer a published release from workflow configuration alone.
