@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -45,6 +47,29 @@ jobs:
       - name: Run unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
+      - name: Prepare release verification files
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          sha256sum "$APK" | sed 's#app/build/outputs/apk/debug/##' > SHA256SUMS.txt
+          {
+            echo "Product: Vendora"
+            echo "Version name: 0.1.0"
+            echo "Version code: 1"
+            echo "Release tag: v0.1.0-beta.${{ github.run_number }}"
+            echo "Build type: debug (unsigned production release)"
+            echo "Commit: ${{ github.sha }}"
+            echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "Minimum Android SDK: 26 (Android 8.0)"
+            echo "Target Android SDK: 36"
+            echo "Java: 17"
+            echo "Validation: assembleDebug and testDebugUnitTest passed"
+            echo "APK filename: app-debug.apk"
+          } > BUILD-INFO.txt
+
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
@@ -60,23 +85,33 @@ jobs:
           tag_name: v0.1.0-beta.${{ github.run_number }}
           name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
           body: |
-            Vendora is an offline-first Android shop management app for small retail businesses.
+            ## Vendora Beta 0.1.0
 
-            This is an automatically generated beta preview from commit ${{ github.sha }}. It is not production-ready; functionality may be incomplete or change between builds.
+            An automatically generated preview of Vendora, an offline-first Android shop-management app for small retail businesses.
 
-            ## Current limitations
-            - Core shop selection and local shop data are under active development.
-            - Full inventory, sales, returns, reporting, and data export workflows may be incomplete.
-            - Bugs, data-loss risks, and breaking changes may occur. Do not use this preview as the sole record for a real business.
-            - The attached app-debug.apk is a debug build, not a signed production release.
-
-            ## Build details
-            - Commit: ${{ github.sha }}
-            - Workflow run: ${{ github.run_number }}
+            ## What's included
+            - `app-debug.apk`: installable debug APK for compatible Android devices.
+            - `SHA256SUMS.txt`: SHA-256 checksum for verifying the APK download.
+            - `BUILD-INFO.txt`: exact source commit, workflow run, Android SDK compatibility, version metadata, and validation results.
+            - Source archives: GitHub provides source ZIP and tarball links for this release tag.
 
             ## Installation
-            Download app-debug.apk from the assets below and install it on a compatible Android device. Android may ask you to allow installation from your browser or file manager.
-          files: app/build/outputs/apk/debug/*.apk
+            1. Download `app-debug.apk` from the assets below.
+            2. Optionally verify it against `SHA256SUMS.txt` using a SHA-256 utility.
+            3. Open the APK on an Android device with Android 8.0 (API 26) or newer and follow Android's installation prompts. You may need to allow installs from the file manager or browser used to open it.
+
+            ## Validation
+            The release is published only after `assembleDebug` and `testDebugUnitTest` pass on GitHub Actions. This does not mean every app workflow has been functionally tested on a physical device.
+
+            ## Important limitations
+            - This is a debug build, not a signed production release.
+            - Features are under active development; shop management and other workflows may be incomplete.
+            - Bugs, data-loss risks, and breaking changes are possible. Do not use this preview as the sole record for a real business.
+            - No production signing, Play Store distribution, or reproducible-build claim is made.
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            SHA256SUMS.txt
+            BUILD-INFO.txt
           fail_on_unmatched_files: true
           draft: false
           prerelease: true
