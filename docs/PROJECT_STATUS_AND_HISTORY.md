@@ -46,6 +46,12 @@ This document is the status ledger for the repository. Update it when implementa
 
 ## Transition history
 
+### 2026-10-24 — Vendora auto-merge preference documented
+
+- Repository owner requested automatic merging for new Vendora PRs only.
+- Updated `AGENTS.md` and `docs/AI_AGENT_WORKLOG.md` to prefer GitHub auto-merge only after exact-head required checks pass and mergeability, draft status, blocking reviews, and material data-loss/security risks are checked.
+- This documents agent behavior; it does not by itself configure repository-wide GitHub auto-merge or background monitoring. Reading branch-protection settings was denied by the connected GitHub integration, so repository-level enforcement remains unverified.
+
 ### 2026-10-24 — AI agent guidance and troubleshooting handoff added
 
 - Expanded `AGENTS.md` with explicit branch/ref awareness, PR review boundaries, exact-SHA CI verification, truthful test reporting, and documentation maintenance rules.
