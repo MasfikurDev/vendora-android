@@ -14,7 +14,6 @@ jobs:
   generate:
     name: Generate and commit Gradle 8.13 wrapper
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/feat/android-bootstrap'
     steps:
       - name: Check out bootstrap branch
         uses: actions/checkout@v4
