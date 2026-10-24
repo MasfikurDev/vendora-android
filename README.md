@@ -2,7 +2,7 @@
 
 Offline-first Android shop management for owners who operate one or more businesses.
 
-> **Status:** Project setup and architecture planning. The Android application scaffold has not yet been generated or verified to build.
+> **Status:** Native Kotlin + Jetpack Compose scaffold is in place. The Gradle 8.13 wrapper is committed, and wrapper-based CI has passed on `main`. PR #8 still needs branch synchronization and a passing check on its updated head before it can be merged. No shop-management features have been implemented yet.
 
 ## Product goals
 
@@ -13,16 +13,16 @@ Offline-first Android shop management for owners who operate one or more busines
 - Support configurable retail business types without forcing every business into the same workflow.
 - Make AI optional and read-only initially; ordinary business operations must never depend on an AI service.
 
-## Planned technology
+## Technology baseline
 
 - Kotlin, Jetpack Compose, Material 3
 - Room / SQLite for local persistence
 - Coroutines and Flow
-- Repository-based data access and MVVM presentation
+- Repository-based data access and MVVM as features are added
 - Unit, database, and UI tests
 - GitHub Actions for build and test checks
 
-Exact dependency versions and module boundaries will be finalized against the generated Android project and documented in architecture decisions. Avoid creating a large multi-module structure before there is a demonstrated need.
+Dependency versions are centralized in `gradle/libs.versions.toml`. Keep the initial app small; introduce architecture packages and additional libraries when the first feature needs them.
 
 ## Initial scope
 
@@ -48,16 +48,29 @@ Staff permissions, multi-device sync, cloud services, forecasting, and specializ
 - Never commit credentials, signing keys, private API keys, or real customer data.
 - AI output is untrusted input. Validate tool arguments and permissions, and calculate financial results in application code.
 
-## Getting started
+## Requirements
 
-The native Android project scaffold is the next setup step. Once Gradle files are present, validate locally on Windows with:
+- JDK 17
+- Android SDK platform 36 and build-tools 36.0.0
+- Gradle 8.13 (downloaded automatically by the committed Gradle wrapper)
 
+## Build and test
+
+From the repository root:
+
+**Windows PowerShell**
 ```powershell
 .\gradlew.bat assembleDebug
 .\gradlew.bat testDebugUnitTest
 ```
 
-These commands are not expected to work until the Android project and Gradle wrapper have been generated.
+**Linux / macOS**
+```shell
+./gradlew assembleDebug
+./gradlew testDebugUnitTest
+```
+
+CI currently builds the debug APK and runs JVM unit tests. The instrumentation smoke test exists but is not yet run by CI because an Android emulator job has not been configured.
 
 ## Workflow
 
@@ -65,7 +78,7 @@ These commands are not expected to work until the Android project and Gradle wra
 - Use short-lived branches such as `feat/shop-switcher`.
 - Use conventional commit messages, for example `feat: add shop switching`.
 - Run relevant tests before opening a pull request.
-- See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and [architecture decisions](docs/decisions/README.md).
+- See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and [architecture principles](docs/architecture/principles.md).
 
 ## License
 
