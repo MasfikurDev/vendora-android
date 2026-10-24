@@ -23,6 +23,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
     var showEditor by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Product?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var productPendingDelete by remember { mutableStateOf<Product?>(null) }
 
     BackHandler(onBack = onBack)
     Scaffold(
@@ -56,6 +57,9 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                 shape = RoundedCornerShape(14.dp),
             )
             Spacer(Modifier.height(12.dp))
+            val filteredProducts = products.filter {
+                it.name.contains(query, true) || it.sku.contains(query, true)
+            }
             if (products.isEmpty()) {
                 Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
                     Column(Modifier.padding(24.dp)) {
@@ -68,9 +72,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 88.dp)) {
-                    items(products.filter {
-                        it.name.contains(query, true) || it.sku.contains(query, true)
-                    }, key = { it.id }) { product ->
+                    items(filteredProducts, key = { it.id }) { product ->
                         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
                             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -87,10 +89,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                     TextButton(onClick = { editing = product; error = null; showEditor = true }) { Text("Edit") }
-                                    TextButton(onClick = {
-                                        productStore.deleteProduct(shop.id, product.id)
-                                        products = productStore.getProducts(shop.id)
-                                    }) { Text("Delete") }
+                                    TextButton(onClick = { productPendingDelete = product }) { Text("Delete") }
                                 }
                             }
                         }
@@ -98,6 +97,36 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (products.isNotEmpty() && query.isNotBlank() && products.none {
+            it.name.contains(query, true) || it.sku.contains(query, true)
+        }) {
+        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(Modifier.padding(20.dp)) {
+                Text("No matching products", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text("Try a different product name or SKU.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+
+    productPendingDelete?.let { product ->
+        AlertDialog(
+            onDismissRequest = { productPendingDelete = null },
+            title = { Text("Delete ${product.name}?") },
+            text = { Text("This removes the product from ${shop.name}'s inventory. This action cannot be undone.") },
+            confirmButton = {
+                Button(onClick = {
+                    productStore.deleteProduct(shop.id, product.id)
+                    products = productStore.getProducts(shop.id)
+                    productPendingDelete = null
+                }) { Text("Delete product") }
+            },
+            dismissButton = {
+                TextButton(onClick = { productPendingDelete = null }) { Text("Cancel") }
+            },
+        )
     }
 
     if (showEditor) {
