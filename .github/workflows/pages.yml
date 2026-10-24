@@ -27,7 +27,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-          cache: pip
       - name: Install documentation dependencies
         run: pip install mkdocs-material
       - name: Build documentation
@@ -51,7 +50,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-          cache: pip
       - name: Install documentation dependencies
         run: pip install mkdocs-material
       - name: Build documentation
