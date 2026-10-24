@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
     var products by remember(shop.id) { mutableStateOf(productStore.getProducts(shop.id)) }
