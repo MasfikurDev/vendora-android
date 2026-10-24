@@ -25,6 +25,7 @@ jobs:
   verify:
     name: Build and unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -48,13 +49,13 @@ jobs:
       - name: Install required Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build debug APK
-        run: ./gradlew --no-daemon assembleDebug
-
-      - name: Run unit tests
-        run: ./gradlew --no-daemon testDebugUnitTest
+      # Run related tasks in one Gradle invocation to avoid starting Gradle twice.
+      # setup-gradle caches dependencies and build outputs between workflow runs.
+      - name: Build debug APK and run unit tests
+        run: ./gradlew assembleDebug testDebugUnitTest
 
       - name: Upload APK as workflow artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: vendora-debug-apk
