@@ -85,3 +85,18 @@ This document is the status ledger for the repository. Update it when implementa
 4. Migrate persistence to Room in a dedicated, tested change before building financially meaningful workflows.
 5. Add stock movement, purchase, sale, return, and expense models with transaction-level integrity.
 6. Keep production signing and release policy separate from debug beta releases.
+
+### 2026-10-24 — Feature preview release workflow updated
+
+- The workflow on `feat/product-catalog-ui` now includes a feature-branch GitHub prerelease step, while the `main`-only beta release step remains separate.
+- Each successful workflow is intended to attach the debug APK, `SHA256SUMS.txt`, and `BUILD-INFO.txt`; the artifact is a preview/debug build, not a signed production release.
+- Commit `12d052e976b68a5b24cc09071813b48303140b24` triggered push and pull-request CI runs. At the time of this documentation update, those runs were still in progress; release publication and final CI outcome are not yet verified.
+- The current product catalog work is tracked by [PR #15](https://github.com/MasfikurDev/vendora-android/pull/15). The older statements above describing PR #13 as the current branch and product catalog UI as wholly unimplemented are historical snapshots and should not be used as the latest status.
+
+### Updated next steps
+
+1. Verify CI for the exact latest PR #15 head SHA and confirm whether the feature prerelease was actually published.
+2. Finish review of product catalog behavior and add focused tests for shop isolation, persistence edge cases, SKU uniqueness, and CRUD validation.
+3. Migrate the interim SharedPreferences/JSON persistence to Room with explicit, tested migrations before financially significant workflows.
+4. Continue with stock movements, purchases, sales, returns, expenses, reports, and backup/export.
+5. Keep signed production distribution separate from debug preview/beta releases.
