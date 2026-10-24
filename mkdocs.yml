@@ -1,0 +1,38 @@
+site_name: Vendora
+site_description: Product direction, UI concepts, architecture, and implementation status for Vendora Android.
+site_url: https://masfikurdev.github.io/vendora-android/
+repo_url: https://github.com/MasfikurDev/vendora-android
+repo_name: MasfikurDev/vendora-android
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: green
+      accent: teal
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+nav:
+  - Overview: index.md
+  - Product:
+      - Vision and scope: product/scope.md
+      - UI concepts: product/ui-concepts.md
+  - Architecture:
+      - Principles: architecture/principles.md
+  - Decisions: decisions/README.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
