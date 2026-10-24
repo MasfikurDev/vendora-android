@@ -60,12 +60,13 @@ jobs:
             echo "Version name: 0.1.0"
             echo "Version code: 1"
             if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "Release tag: v0.1.0-beta.${{ github.run_number }}"
-          else
-            echo "Release tag: none (feature build artifact only)"
-          fi
-          echo "Branch: ${{ github.ref_name }}"
-            echo "Build type: debug (unsigned production release)"
+              echo "Release tag: v0.1.0-beta.${{ github.run_number }}"
+            else
+              SAFE_BRANCH="$(echo "${GITHUB_REF_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9.-]/-/g')"
+              echo "Release tag: v0.1.0-${SAFE_BRANCH}.${{ github.run_number }}"
+            fi
+            echo "Branch: ${{ github.ref_name }}"
+            echo "Build type: debug (unsigned; preview build)"
             echo "Commit: ${{ github.sha }}"
             echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             echo "Minimum Android SDK: 26 (Android 8.0)"
@@ -85,6 +86,30 @@ jobs:
             BUILD-INFO.txt
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish feature build as a GitHub prerelease
+        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-${{ github.ref_name }}.${{ github.run_number }}
+          name: Vendora Feature Build — ${{ github.ref_name }} #${{ github.run_number }}
+          body: |
+            ## Vendora feature preview
+
+            This prerelease was built from feature branch `${{ github.ref_name }}` at commit `${{ github.sha }}`.
+
+            - Includes an installable debug APK, SHA-256 checksum, and build metadata.
+            - Created only after the Android build and unit tests pass.
+            - Intended for feature review; not a stable/public beta release.
+            - Debug build, not a signed production build. Features may be incomplete and data may be lost.
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            SHA256SUMS.txt
+            BUILD-INFO.txt
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: true
+          generate_release_notes: true
 
       - name: Create a new beta release for this successful main build
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
