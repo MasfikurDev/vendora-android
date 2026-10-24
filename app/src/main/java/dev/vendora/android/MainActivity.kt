@@ -52,6 +52,7 @@ private fun ShopSelectionScreen(shopStore: ShopStore) {
     var shops by remember { mutableStateOf(shopStore.getShops()) }
     var activeShopId by remember { mutableStateOf(shopStore.getActiveShopId()) }
     var showCreateShop by remember { mutableStateOf(shops.isEmpty()) }
+    var createShopError by remember { mutableStateOf<String?>(null) }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -149,19 +150,31 @@ private fun ShopSelectionScreen(shopStore: ShopStore) {
 
     if (showCreateShop) {
         CreateShopDialog(
-            onDismiss = { showCreateShop = false },
+            onDismiss = { showCreateShop = false; createShopError = null },
             onCreate = { name, businessType ->
-                val created = shopStore.createShop(name, businessType)
-                shops = shopStore.getShops()
-                activeShopId = created.id
-                showCreateShop = false
+                runCatching { shopStore.createShop(name, businessType) }
+                    .onSuccess { created ->
+                        shops = shopStore.getShops()
+                        activeShopId = created.id
+                        showCreateShop = false
+                    }
+                    .onFailure { error ->
+                        createShopError = error.message ?: "Could not create this shop."
+                    }
             },
+            errorMessage = createShopError,
+            onInputChanged = { createShopError = null },
         )
     }
 }
 
 @Composable
-private fun CreateShopDialog(onDismiss: () -> Unit, onCreate: (String, String) -> Unit) {
+private fun CreateShopDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String, String) -> Unit,
+    errorMessage: String?,
+    onInputChanged: () -> Unit,
+) {
     var name by remember { mutableStateOf("") }
     var businessType by remember { mutableStateOf("General store") }
     var typeMenuExpanded by remember { mutableStateOf(false) }
@@ -175,13 +188,20 @@ private fun CreateShopDialog(onDismiss: () -> Unit, onCreate: (String, String) -
                 Text("Give this business a name and choose the closest category.", color = VendoraMuted, style = MaterialTheme.typography.bodyMedium)
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = { name = it; onInputChanged() },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Shop name") },
                     placeholder = { Text("e.g. Rahman Store") },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                 )
+                if (errorMessage != null) {
+                    Text(
+                        errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 Column {
                     Text("Business type", style = MaterialTheme.typography.labelMedium, color = VendoraMuted)
                     Spacer(Modifier.height(6.dp))
@@ -194,6 +214,7 @@ private fun CreateShopDialog(onDismiss: () -> Unit, onCreate: (String, String) -
                             businessTypes.forEach { type ->
                                 DropdownMenuItem(text = { Text(type) }, onClick = {
                                     businessType = type
+                                    onInputChanged()
                                     typeMenuExpanded = false
                                 })
                             }
