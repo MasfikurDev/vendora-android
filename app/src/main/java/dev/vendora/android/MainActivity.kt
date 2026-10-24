@@ -41,17 +41,24 @@ class MainActivity : ComponentActivity() {
                     onSecondaryContainer = VendoraGreen,
                 )
             ) {
-                ShopSelectionScreen(shopStore)
+                ShopSelectionScreen(shopStore, ProductStore(applicationContext))
             }
         }
     }
 }
 
 @Composable
-private fun ShopSelectionScreen(shopStore: ShopStore) {
+private fun ShopSelectionScreen(shopStore: ShopStore, productStore: ProductStore) {
     var shops by remember { mutableStateOf(shopStore.getShops()) }
     var activeShopId by remember { mutableStateOf(shopStore.getActiveShopId()) }
+    var openedShopId by remember { mutableStateOf<String?>(null) }
     var showCreateShop by remember { mutableStateOf(shops.isEmpty()) }
+
+    val openedShop = shops.firstOrNull { it.id == openedShopId }
+    if (openedShop != null) {
+        ShopDashboard(shop = openedShop, productStore = productStore, onBack = { openedShopId = null })
+        return
+    }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
@@ -100,6 +107,7 @@ private fun ShopSelectionScreen(shopStore: ShopStore) {
                             onClick = {
                                 shopStore.setActiveShopId(shop.id)
                                 activeShopId = shop.id
+                                openedShopId = shop.id
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),

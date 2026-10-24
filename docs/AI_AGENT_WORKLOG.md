@@ -76,3 +76,11 @@ Agents should leave a short handoff in the PR description or work summary:
 ## Evidence boundary
 
 This log currently records repository-specific lessons confirmed from Vendora's documented state and workflow policy. It does not claim that unrelated OpenCode/OpenRouter, Vercel, or other-project incidents were caused or fixed in this repository. Add such incidents only when the relevant project, error, fix, and verification are known, and link the exact PR/commit/run when possible.
+
+## Feature-branch release workflow update — 2026-10-24
+
+- Current workflow change is on `feat/product-catalog-ui`, commit `12d052e976b68a5b24cc09071813b48303140b24`.
+- Intended behavior: successful feature-branch pushes publish a branch-specific GitHub prerelease with APK, checksum, and build metadata; successful pushes to `main` retain the separate beta-release path.
+- CI runs `40102203101` (push) and `40102207210` (pull request) were observed in progress for this exact SHA during the update. Do not report the new workflow as verified or claim a feature release exists until the run is complete and the Releases page confirms publication.
+- This supersedes the older sentence in this worklog that says feature-branch pushes and PR checks should never publish releases. PR checks themselves do not publish releases; the separate push event to a feature branch is what invokes the feature prerelease step.
+- Feature releases are debug previews, not signed production builds. Check the exact branch, SHA, run conclusion, and published tag before sharing a build.
