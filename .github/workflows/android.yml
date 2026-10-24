@@ -48,8 +48,7 @@ jobs:
       - name: Run unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
-      - name: Prepare release verification files
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Prepare build verification files
         shell: bash
         run: |
           set -euo pipefail
@@ -60,7 +59,12 @@ jobs:
             echo "Product: Vendora"
             echo "Version name: 0.1.0"
             echo "Version code: 1"
+            if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
             echo "Release tag: v0.1.0-beta.${{ github.run_number }}"
+          else
+            echo "Release tag: none (feature build artifact only)"
+          fi
+          echo "Branch: ${{ github.ref_name }}"
             echo "Build type: debug (unsigned production release)"
             echo "Commit: ${{ github.sha }}"
             echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
@@ -74,8 +78,11 @@ jobs:
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vendora-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: vendora-build-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            SHA256SUMS.txt
+            BUILD-INFO.txt
           if-no-files-found: error
           retention-days: 14
 
