@@ -165,6 +165,47 @@ class ProductStoreTest {
         assertEquals("Count correction", store.getStockMovements("shop-a").single().reason)
     }
 
+    @Test
+    fun recordingSaleAtomicallyUpdatesStockSaleAndMovementHistory() {
+        store.saveProduct(product(id = "p-sale", quantity = 5, sellingPricePoisha = 250L))
+
+        val sale = store.recordSale("shop-a", "p-sale", 2)
+
+        assertEquals(3, store.getProducts("shop-a").single().quantity)
+        assertEquals(500L, sale.totalPoisha)
+        assertEquals(listOf(sale.id), store.getSales("shop-a").map { it.id })
+        val movement = store.getStockMovements("shop-a", "p-sale").single()
+        assertEquals(-2, movement.delta)
+        assertEquals(5, movement.quantityBefore)
+        assertEquals(3, movement.quantityAfter)
+        assertEquals("Sale ${sale.id}", movement.reason)
+    }
+
+    @Test
+    fun saleRejectsOversellingAndDoesNotCreateRecords() {
+        store.saveProduct(product(id = "p-sale", quantity = 1))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            store.recordSale("shop-a", "p-sale", 2)
+        }
+
+        assertEquals(1, store.getProducts("shop-a").single().quantity)
+        assertEquals(emptyList<SaleRecord>(), store.getSales("shop-a"))
+        assertEquals(emptyList<StockMovement>(), store.getStockMovements("shop-a"))
+    }
+
+    @Test
+    fun salesAreIsolatedByShopAndPersistAfterStoreRecreation() {
+        store.saveProduct(product(id = "p-a", shopId = "shop-a", quantity = 2))
+        store.saveProduct(product(id = "p-b", shopId = "shop-b", quantity = 2))
+        store.recordSale("shop-a", "p-a", 1)
+        store = ProductStore(RuntimeEnvironment.getApplication())
+
+        assertEquals(1, store.getSales("shop-a").size)
+        assertEquals(emptyList<SaleRecord>(), store.getSales("shop-b"))
+        assertEquals(1, store.getProducts("shop-b").single().quantity.let { 2 - it })
+    }
+
     private fun product(
         id: String = "product-1",
         shopId: String = "shop-a",
