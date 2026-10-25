@@ -18,27 +18,7 @@ data class Product(
 class ProductStore(context: Context) {
     private val preferences = context.getSharedPreferences("vendora_products", Context.MODE_PRIVATE)
 
-    fun getProducts(shopId: String): List<Product> = runCatching {
-        val array = JSONArray(preferences.getString(KEY_PRODUCTS, "[]"))
-        buildList {
-            for (index in 0 until array.length()) {
-                val item = array.getJSONObject(index)
-                if (item.optString("shopId") == shopId) {
-                    add(
-                        Product(
-                            id = item.getString("id"),
-                            shopId = item.getString("shopId"),
-                            name = item.getString("name"),
-                            sku = item.getString("sku"),
-                            quantity = item.getInt("quantity"),
-                            purchasePricePoisha = item.getLong("purchasePricePoisha"),
-                            sellingPricePoisha = item.getLong("sellingPricePoisha"),
-                        )
-                    )
-                }
-            }
-        }
-    }.getOrDefault(emptyList())
+    fun getProducts(shopId: String): List<Product> = readAll().filter { it.shopId == shopId }
 
     fun saveProduct(product: Product) {
         require(product.shopId.isNotBlank()) { "A shop is required." }
@@ -57,8 +37,30 @@ class ProductStore(context: Context) {
         require(!duplicateSku) { "This SKU already exists in this shop." }
         val normalized = product.copy(name = product.name.trim(), sku = product.sku.trim())
         val index = all.indexOfFirst { it.id == normalized.id }
-        if (index >= 0) all[index] = normalized else all.add(normalized)
+        if (index >= 0) {
+            require(all[index].shopId == normalized.shopId) { "A product cannot be moved between shops." }
+            all[index] = normalized
+        } else {
+            all.add(normalized)
+        }
         writeAll(all)
+    }
+
+    /** Adjust stock by a non-zero delta without allowing negative inventory. */
+    fun adjustStock(shopId: String, productId: String, delta: Int): Product {
+        require(delta != 0) { "Stock adjustment cannot be zero." }
+        val all = readAll().toMutableList()
+        val index = all.indexOfFirst { it.shopId == shopId && it.id == productId }
+        require(index >= 0) { "Product not found in this shop." }
+        val current = all[index]
+        val updatedQuantity = current.quantity.toLong() + delta.toLong()
+        require(updatedQuantity >= 0L && updatedQuantity <= Int.MAX_VALUE) {
+            "Stock adjustment would produce an invalid quantity."
+        }
+        val updated = current.copy(quantity = updatedQuantity.toInt())
+        all[index] = updated
+        writeAll(all)
+        return updated
     }
 
     fun deleteProduct(shopId: String, productId: String) {
@@ -100,6 +102,7 @@ class ProductStore(context: Context) {
 
     companion object {
         private const val KEY_PRODUCTS = "products"
+        const val LOW_STOCK_THRESHOLD = 5
         fun newId(): String = UUID.randomUUID().toString()
     }
 }
