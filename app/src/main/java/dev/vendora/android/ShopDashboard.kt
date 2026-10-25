@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -28,6 +29,13 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
     var productPendingDelete by remember { mutableStateOf<Product?>(null) }
     var stockAdjustmentError by remember { mutableStateOf<String?>(null) }
     var showStockHistory by remember { mutableStateOf(false) }
+    var showSales by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    if (showSales) {
+        SalesScreen(shop = shop, productStore = productStore, salesStore = SalesStore(context), onBack = { showSales = false })
+        return
+    }
 
     BackHandler(onBack = onBack)
     Scaffold(
@@ -40,7 +48,10 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                     }
                 },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Shops") } },
-                actions = { TextButton(onClick = { showStockHistory = true }) { Text("History") } },
+                actions = {
+                    TextButton(onClick = { showSales = true }) { Text("Sell") }
+                    TextButton(onClick = { showStockHistory = true }) { Text("History") }
+                },
             )
         },
         floatingActionButton = {
@@ -319,5 +330,5 @@ private fun parsePoisha(value: String): Long? {
     return taka * 100 + poisha
 }
 
-private fun formatBdt(poisha: Long): String =
+fun formatBdt(poisha: Long): String =
     "৳" + NumberFormat.getNumberInstance(Locale("en", "BD")).format(poisha / 100.0)
