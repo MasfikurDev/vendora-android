@@ -84,3 +84,13 @@ This log currently records repository-specific lessons confirmed from Vendora's 
 - CI runs `40102203101` (push) and `40102207210` (pull request) were observed in progress for this exact SHA during the update. Do not report the new workflow as verified or claim a feature release exists until the run is complete and the Releases page confirms publication.
 - This supersedes the older sentence in this worklog that says feature-branch pushes and PR checks should never publish releases. PR checks themselves do not publish releases; the separate push event to a feature branch is what invokes the feature prerelease step.
 - Feature releases are debug previews, not signed production builds. Check the exact branch, SHA, run conclusion, and published tag before sharing a build.
+
+
+## End-to-end write/read consistency — 2026-10-25
+
+- Treat a successful write and a refreshed UI as separate acceptance criteria. Compose state initialized with `remember(shop.id)` does not automatically reload when another screen mutates the same store.
+- For sales and stock changes, trace the complete path: input/cart → validation → persisted product quantities → sale records → movement ledger → return/navigation → inventory/dashboard/history UI.
+- On navigation back, explicitly refresh affected state or use an observable state source that emits updates. Do not rely on a screen being recomposed as proof its data was re-read.
+- Add regression checks that failed checkout leaves all stock, sales, and movement records unchanged; successful checkout updates every affected product and creates matching sale/movement records. Keep store-level tests distinct from Compose navigation/UI tests.
+- Current concrete issue to track: `ShopDashboard` remembers products loaded at initial entry; when `SalesScreen` returns, its callback should reload products from `ProductStore`. The source review identified this stale inventory-display risk; actual device behavior has not been verified. Recheck the current branch and fix/test it before describing the workflow as fully verified.
+- Storage caveat: a synchronous SharedPreferences `.commit()` writes several JSON values together in one preferences edit, but this remains interim storage. It does not provide the full guarantees of a database transaction or concurrency control expected for production.
