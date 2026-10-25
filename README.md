@@ -36,6 +36,10 @@ Read the full [Product Direction and UX Requirements](docs/PRODUCT_DIRECTION.md)
 
 Do not describe planned technologies or UI as already implemented. Keep the app small and add architecture only when a feature needs it.
 
+## Product experience direction
+
+The proposed mobile-first UX is documented in [Vendora Product Direction](docs/PRODUCT_DIRECTION.md), with an illustrative four-screen concept board at [docs/images/vendora-product-direction.svg](docs/images/vendora-product-direction.svg). It defines the business-profile model, dashboard-first home, always-accessible selling, image-first products, and insights. These are product requirements and concepts, not claims that every screen is already implemented.
+
 ## Product scope
 
 1. Shop creation, business profiles, and switching
