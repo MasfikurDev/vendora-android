@@ -42,8 +42,10 @@ These instructions apply to the whole repository unless a closer `AGENTS.md` ove
 
 ## Quality
 - Add or update unit tests for domain rules and regression cases.
+- Review end-to-end state propagation after every write: when a sale or stock adjustment succeeds, verify inventory, dashboard aggregates, sale history, and stock-movement history refresh when revisited. A successful persistence test does not prove a composable has refreshed its remembered state.
+- Test failed operations for zero partial effects across every related record (stock, sales, and movements); test shop isolation for each new transaction path.
 - Add database/DAO tests for persistence, transaction behavior, and shop isolation.
-- Add UI tests for critical user journeys where practical.
+- Add UI tests for critical user journeys where practical. If no emulator/UI test is available, add the strongest feasible state/store regression test and explicitly record the remaining UI verification gap.
 - Run relevant Gradle tests and build tasks when the wrapper/project is available; report exactly what was and was not run.
 - Do not claim a build or test passed unless its result was observed.
 - Keep accessibility, small-screen layouts, loading/empty/error states, and offline behavior in mind.
