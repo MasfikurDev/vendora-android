@@ -206,6 +206,58 @@ class ProductStoreTest {
         assertEquals(2, store.getProducts("shop-b").single().quantity)
     }
 
+    @Test
+    fun multiProductCheckoutPersistsAllLinesAndStockMovementsTogether() {
+        store.saveProduct(product(id = "tea", name = "Tea", quantity = 5, sellingPricePoisha = 250L))
+        store.saveProduct(product(id = "rice", name = "Rice", quantity = 8, sellingPricePoisha = 120L))
+
+        val sales = store.recordSale("shop-a", listOf(
+            SaleLineRequest("tea", 2),
+            SaleLineRequest("rice", 3),
+        ))
+
+        assertEquals(2, sales.size)
+        assertEquals(500L, sales.single { it.productId == "tea" }.totalPoisha)
+        assertEquals(360L, sales.single { it.productId == "rice" }.totalPoisha)
+        assertEquals(3, store.getProducts("shop-a").single { it.id == "tea" }.quantity)
+        assertEquals(5, store.getProducts("shop-a").single { it.id == "rice" }.quantity)
+        assertEquals(2, store.getStockMovements("shop-a").size)
+        assertEquals(2, store.getSales("shop-a").size)
+    }
+
+    @Test
+    fun invalidCartDoesNotPartiallyChangeStockOrCreateSales() {
+        store.saveProduct(product(id = "tea", quantity = 5))
+        store.saveProduct(product(id = "rice", quantity = 1))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            store.recordSale("shop-a", listOf(
+                SaleLineRequest("tea", 2),
+                SaleLineRequest("rice", 2),
+            ))
+        }
+
+        assertEquals(5, store.getProducts("shop-a").single { it.id == "tea" }.quantity)
+        assertEquals(1, store.getProducts("shop-a").single { it.id == "rice" }.quantity)
+        assertEquals(emptyList<SaleRecord>(), store.getSales("shop-a"))
+        assertEquals(emptyList<StockMovement>(), store.getStockMovements("shop-a"))
+    }
+
+    @Test
+    fun cartRejectsDuplicateLinesByCombiningQuantitiesBeforeStockValidation() {
+        store.saveProduct(product(id = "tea", quantity = 3))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            store.recordSale("shop-a", listOf(
+                SaleLineRequest("tea", 2),
+                SaleLineRequest("tea", 2),
+            ))
+        }
+
+        assertEquals(3, store.getProducts("shop-a").single().quantity)
+        assertEquals(emptyList<SaleRecord>(), store.getSales("shop-a"))
+    }
+
     private fun product(
         id: String = "product-1",
         shopId: String = "shop-a",
