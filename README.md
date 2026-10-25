@@ -86,3 +86,8 @@ A license has not yet been selected. Do not assume this project is open source m
 ## Feature preview releases
 
 Each successful feature-branch push is intended to publish a branch-specific GitHub prerelease after `assembleDebug` and `testDebugUnitTest` pass. The workflow run must be checked before claiming a release exists. Feature previews are temporary review builds; only `main` publishes the project beta channel.
+
+
+## AI coding skills
+
+Repository-specific and upstream Android coding-agent skills are maintained in [`.agents/skills/`](.agents/skills/README.md). They cover end-to-end workflow verification, Compose quality, inventory transaction integrity, testing, Git/PR workflow, and selected upstream Google Android guidance.
