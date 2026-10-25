@@ -2,7 +2,7 @@
 
 **Status:** Product direction / proposed UX. The screens below are conceptual mockups, not screenshots of implemented functionality. Use this document to guide future product and UI decisions; implementation status remains governed by the code and [project status ledger](PROJECT_STATUS_AND_HISTORY.md).
 
-![Vendora concept board showing the dashboard, multi-product point of sale, image-first product catalog, and business profile](images/vendora-product-direction.svg)
+![Five-screen Vendora concept board: Home dashboard, image-first Products catalog, fast Sell checkout, real-data Insights, and social-account-style Business profile](images/vendora-product-direction.svg)
 
 ## Product vision
 
@@ -12,7 +12,7 @@ The home screen is the business overview. Selling must be immediately accessible
 
 ## Primary navigation
 
-Use a mobile-first five-destination bottom navigation:
+The five destinations are the product's core information architecture, not merely a list of optional screens. **Sell should be visually prominent and reachable in one tap**; Home remains the landing destination for business performance. Use a mobile-first five-destination bottom navigation:
 
 1. **Home** — overview and quick actions.
 2. **Products** — image-first catalog and inventory.
@@ -23,6 +23,8 @@ Use a mobile-first five-destination bottom navigation:
 On narrow screens, prioritize content and touch targets; avoid squeezing secondary actions into the bottom bar. Keep navigation labels and accessibility semantics clear.
 
 ## Screen requirements
+
+The concept board shows the intended relationship between all five destinations. Its sample business, products, numbers, charts, and stock counts are illustrative only; they must never be copied into production as real business data.
 
 ### 1. Home — business overview
 
@@ -36,6 +38,7 @@ On narrow screens, prioritize content and touch targets; avoid squeezing seconda
 
 ### 2. Sell — fast point of sale
 
+- Give Sell a prominent, easy-to-hit bottom-navigation destination; do not make users open Products or Business first.
 - Make the Sell destination one tap away from anywhere in the main app.
 - Search products by name/SKU and support barcode scanning when implemented.
 - Show product thumbnails, available stock, price, and clear quantity controls.
@@ -57,7 +60,7 @@ On narrow screens, prioritize content and touch targets; avoid squeezing seconda
 
 ### 4. Business — profile and management
 
-Treat each business like a manageable account with its own identity:
+Treat each business like a social-media-style business account, with identity and activity rather than only a settings form:
 
 - Logo/avatar, optional cover image, business name, description, business type, phone/contact details, address, and opening hours.
 - Business switcher that clearly indicates the active business.
@@ -96,6 +99,8 @@ Treat each business like a manageable account with its own identity:
 - Product images need a defined persistence, cleanup, offline, and backup strategy; avoid orphaned files when products are deleted or images replaced.
 
 ## Suggested implementation sequence
+
+The board is a product-design reference, not a mandate to implement all five screens in one pull request. Deliver the experience in small, reviewable slices and keep the navigation/data contracts consistent across them.
 
 1. **Navigation and dashboard foundation:** establish the five destinations, active-business context, and dashboard state/empty states; verify cross-screen refresh.
 2. **Image-backed product catalog:** image selection, durable image references, grid/list UI, search, filters, and accessibility.
