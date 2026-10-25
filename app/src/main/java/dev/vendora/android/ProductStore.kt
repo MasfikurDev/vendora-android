@@ -15,6 +15,12 @@ data class Product(
     val sellingPricePoisha: Long,
 )
 
+data class StockMovement(
+    val id: String, val shopId: String, val productId: String, val productName: String,
+    val delta: Int, val quantityBefore: Int, val quantityAfter: Int, val reason: String,
+    val timestampMillis: Long,
+)
+
 class ProductStore(context: Context) {
     private val preferences = context.getSharedPreferences("vendora_products", Context.MODE_PRIVATE)
 
@@ -46,8 +52,12 @@ class ProductStore(context: Context) {
         writeAll(all)
     }
 
-    /** Adjust stock by a non-zero delta without allowing negative inventory. */
-    fun adjustStock(shopId: String, productId: String, delta: Int): Product {
+    fun getStockMovements(shopId: String, productId: String? = null): List<StockMovement> =
+        readMovements().filter { it.shopId == shopId && (productId == null || it.productId == productId) }
+            .sortedByDescending { it.timestampMillis }
+
+    /** Adjust stock and persist an audit entry. */
+    fun adjustStock(shopId: String, productId: String, delta: Int, reason: String = "Manual adjustment"): Product {
         require(delta != 0) { "Stock adjustment cannot be zero." }
         val all = readAll().toMutableList()
         val index = all.indexOfFirst { it.shopId == shopId && it.id == productId }
@@ -59,7 +69,13 @@ class ProductStore(context: Context) {
         }
         val updated = current.copy(quantity = updatedQuantity.toInt())
         all[index] = updated
-        writeAll(all)
+        val movement = StockMovement(UUID.randomUUID().toString(), shopId, productId, current.name,
+            delta, current.quantity, updated.quantity, reason.trim().ifBlank { "Manual adjustment" },
+            System.currentTimeMillis())
+        check(preferences.edit().putString(KEY_PRODUCTS, encodeProducts(all))
+            .putString(KEY_MOVEMENTS, encodeMovements(readMovements() + movement)).commit()) {
+            "Could not save stock adjustment history."
+        }
         return updated
     }
 
@@ -86,22 +102,38 @@ class ProductStore(context: Context) {
     }.getOrDefault(emptyList())
 
     private fun writeAll(products: List<Product>) {
+        preferences.edit().putString(KEY_PRODUCTS, encodeProducts(products)).apply()
+    }
+
+    private fun encodeProducts(products: List<Product>): String {
         val array = JSONArray()
-        products.forEach { p ->
-            array.put(JSONObject()
-                .put("id", p.id)
-                .put("shopId", p.shopId)
-                .put("name", p.name)
-                .put("sku", p.sku)
-                .put("quantity", p.quantity)
-                .put("purchasePricePoisha", p.purchasePricePoisha)
-                .put("sellingPricePoisha", p.sellingPricePoisha))
-        }
-        preferences.edit().putString(KEY_PRODUCTS, array.toString()).apply()
+        products.forEach { p -> array.put(JSONObject().put("id", p.id).put("shopId", p.shopId)
+            .put("name", p.name).put("sku", p.sku).put("quantity", p.quantity)
+            .put("purchasePricePoisha", p.purchasePricePoisha).put("sellingPricePoisha", p.sellingPricePoisha)) }
+        return array.toString()
+    }
+
+    private fun readMovements(): List<StockMovement> = runCatching {
+        val array = JSONArray(preferences.getString(KEY_MOVEMENTS, "[]"))
+        buildList { for (i in 0 until array.length()) { val x = array.getJSONObject(i)
+            add(StockMovement(x.getString("id"), x.getString("shopId"), x.getString("productId"),
+                x.optString("productName"), x.getInt("delta"), x.getInt("quantityBefore"),
+                x.getInt("quantityAfter"), x.optString("reason", "Manual adjustment"), x.getLong("timestampMillis")))
+        } }
+    }.getOrDefault(emptyList())
+
+    private fun encodeMovements(movements: List<StockMovement>): String {
+        val array = JSONArray()
+        movements.forEach { m -> array.put(JSONObject().put("id", m.id).put("shopId", m.shopId)
+            .put("productId", m.productId).put("productName", m.productName).put("delta", m.delta)
+            .put("quantityBefore", m.quantityBefore).put("quantityAfter", m.quantityAfter)
+            .put("reason", m.reason).put("timestampMillis", m.timestampMillis)) }
+        return array.toString()
     }
 
     companion object {
         private const val KEY_PRODUCTS = "products"
+        private const val KEY_MOVEMENTS = "stock_movements"
         const val LOW_STOCK_THRESHOLD = 5
         fun newId(): String = UUID.randomUUID().toString()
     }
