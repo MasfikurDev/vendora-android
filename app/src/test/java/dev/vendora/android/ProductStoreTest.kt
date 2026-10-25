@@ -86,6 +86,57 @@ class ProductStoreTest {
         assertEquals(listOf("p2"), store.getProducts("shop-b").map { it.id })
     }
 
+
+    @Test
+    fun stockCanBeAdjustedUpAndDown() {
+        store.saveProduct(product(id = "p1", quantity = 3))
+
+        assertEquals(4, store.adjustStock("shop-a", "p1", 1).quantity)
+        assertEquals(2, store.adjustStock("shop-a", "p1", -2).quantity)
+        assertEquals(2, store.getProducts("shop-a").single().quantity)
+    }
+
+    @Test
+    fun stockAdjustmentCannotMakeQuantityNegative() {
+        store.saveProduct(product(id = "p1", quantity = 0))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            store.adjustStock("shop-a", "p1", -1)
+        }
+        assertEquals(0, store.getProducts("shop-a").single().quantity)
+    }
+
+    @Test
+    fun stockAdjustmentMustTargetProductInRequestedShop() {
+        store.saveProduct(product(id = "p1", shopId = "shop-a", quantity = 2))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            store.adjustStock("shop-b", "p1", 1)
+        }
+        assertEquals(2, store.getProducts("shop-a").single().quantity)
+    }
+
+    @Test
+    fun zeroStockAdjustmentIsRejected() {
+        store.saveProduct(product(id = "p1", quantity = 2))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            store.adjustStock("shop-a", "p1", 0)
+        }
+        assertEquals(2, store.getProducts("shop-a").single().quantity)
+    }
+
+    @Test
+    fun savingProductCannotMoveExistingIdToAnotherShop() {
+        store.saveProduct(product(id = "p1", shopId = "shop-a"))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            store.saveProduct(product(id = "p1", shopId = "shop-b"))
+        }
+        assertEquals(listOf("p1"), store.getProducts("shop-a").map { it.id })
+        assertEquals(emptyList<String>(), store.getProducts("shop-b").map { it.id })
+    }
+
     private fun product(
         id: String = "product-1",
         shopId: String = "shop-a",
