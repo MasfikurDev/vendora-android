@@ -1,14 +1,25 @@
 # Vendora
 
-Offline-first Android shop management for owners who operate one or more businesses.
+Offline-first Android business management for owners who operate one or more businesses.
 
-> **Current status (2026-10-25):** Early implementation, not production-ready. The active feature stack now includes shop-scoped product catalog/inventory, stock adjustments and movement history, a basic sales screen, and a multi-product cart/checkout on feature branches. Persistence still uses JSON in SharedPreferences, not Room/SQLite. Check [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the branch-aware snapshot and history.
+> **Current status (2026-10-25):** Early implementation, not production-ready. The active feature stack includes shop-scoped catalog/inventory, stock adjustments and movement history, a basic sales screen, and multi-product cart/checkout on feature branches. Persistence still uses JSON in SharedPreferences, not Room/SQLite. See [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the branch-aware status ledger.
+
+## Product direction
+
+Vendora is intended to be a **business-management workspace**, not just an inventory counter. Each shop should feel like a manageable business account with its own identity, image-backed product catalog, sales activity, insights, and settings. The home screen should be an overview/dashboard, and selling should remain one tap away.
+
+![Vendora concept board: dashboard, point of sale, product catalog, and business profile](docs/images/vendora-product-direction.svg)
+
+Read the full [Product Direction and UX Requirements](docs/PRODUCT_DIRECTION.md). The image is an illustrative concept, not a screenshot of implemented UI.
 
 ## Product goals
 
 - Manage multiple shops under one owner, with strict shop-scoped data access.
 - Work reliably offline; local storage is the source of truth.
-- Track products, stock movements, and basic sales; purchases, returns, expenses, and reports remain planned.
+- Build a visual product catalog with product images.
+- Make point-of-sale checkout fast and easy to access.
+- Provide an honest business overview with charts based on persisted records.
+- Track products, stock movements, and sales; purchases, returns, expenses, and advanced reports remain planned.
 - Keep financial calculations deterministic and auditable.
 - Support configurable retail business types without forcing every business into the same workflow.
 - Make AI optional; ordinary business operations must never depend on an AI service.
@@ -23,17 +34,18 @@ Offline-first Android shop management for owners who operate one or more busines
 - **Target persistence:** Room/SQLite with explicit migrations, introduced as a focused migration
 - Coroutines/Flow, repository boundaries, and lifecycle-aware state as implementation evolves
 
-Do not describe planned technologies as already implemented. Keep the app small and add architecture only when a feature needs it.
+Do not describe planned technologies or UI as already implemented. Keep the app small and add architecture only when a feature needs it.
 
 ## Product scope
 
-1. Shop creation and switching
-2. Shop-scoped product catalog and inventory
+1. Shop creation, business profiles, and switching
+2. Image-backed shop-scoped product catalog and inventory
 3. Audited stock movement ledger
-4. Purchases, sales, and returns
-5. Expenses, profitability, and reports
-6. Local export and backup
-7. Optional AI provider boundary for read-only business questions
+4. Fast point-of-sale and sales history
+5. Business dashboard, insights, and reporting
+6. Purchases, returns, expenses, and profitability
+7. Local export and backup
+8. Optional AI provider boundary for read-only business questions
 
 Staff permissions, multi-device sync, cloud services, forecasting, and specialized pharmacy workflows are later phases.
 
@@ -45,6 +57,8 @@ Staff permissions, multi-device sync, cloud services, forecasting, and specializ
 - Snapshot relevant prices and costs on transaction lines so historical reports remain meaningful.
 - Include shop ownership/scope in relevant data access paths and tests.
 - Verify the complete user workflow after writes: inventory quantities, dashboard summaries, sales history, and stock-movement history must reflect the persisted result when revisiting screens. Do not assume persistence means the UI state refreshed.
+- Charts and metrics must derive from actual persisted records, include date/metric definitions, and handle empty or incomplete data honestly.
+- Product images need a deliberate offline storage, cleanup, and backup strategy.
 - Use explicit Room migrations and test them when Room is introduced.
 - Never commit credentials, signing keys, private API keys, or real customer data.
 - AI output is untrusted input. Validate tool arguments and permissions, and calculate financial results in application code.
@@ -77,7 +91,7 @@ CI builds a debug APK and runs JVM unit tests. Instrumentation tests are present
 - Production releases require a separately planned, signed release process and explicit version/tag policy.
 - Do not merge pull requests without explicit authorization from the repository owner.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), and [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), [Product Direction](docs/PRODUCT_DIRECTION.md), and [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
 
 ## License
 
@@ -86,7 +100,6 @@ A license has not yet been selected. Do not assume this project is open source m
 ## Feature preview releases
 
 Each successful feature-branch push is intended to publish a branch-specific GitHub prerelease after `assembleDebug` and `testDebugUnitTest` pass. The workflow run must be checked before claiming a release exists. Feature previews are temporary review builds; only `main` publishes the project beta channel.
-
 
 ## AI coding skills
 
