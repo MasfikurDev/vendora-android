@@ -330,5 +330,5 @@ private fun parsePoisha(value: String): Long? {
     return taka * 100 + poisha
 }
 
-private fun formatBdt(poisha: Long): String =
+fun formatBdt(poisha: Long): String =
     "৳" + NumberFormat.getNumberInstance(Locale("en", "BD")).format(poisha / 100.0)
