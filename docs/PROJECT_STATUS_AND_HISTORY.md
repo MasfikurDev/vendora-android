@@ -110,3 +110,10 @@ This document is the status ledger for the repository. Update it when implementa
 - Review found a UI-state risk: `ShopDashboard` loads products into remembered state, while navigating into sales and back may leave inventory counts stale even when storage has been updated. Fix and regression verification are required before claiming the end-to-end workflow is complete.
 - New standing quality rule: validate downstream screens after every write, including inventory counts, dashboard summaries, sales history, and stock history; include full-workflow regression coverage where feasible. Distinguish persistence tests from UI/navigation tests, and state that device behavior is unverified unless actually tested on a device/emulator.
 - PR #20 latest known head before this documentation update: `42806562b6458b41301721068401cc7c212903b8`. Check the live PR and CI for newer commits and exact-head results before reporting status.
+
+
+### 2026-10-25 — Business-workspace product direction documented
+
+- Recorded the proposed business-account-style experience in [Vendora Product Direction](PRODUCT_DIRECTION.md), including a dashboard-first home, one-tap Sell destination, image-first product catalog, business profile/switcher, and real-data-driven Insights.
+- Added a conceptual SVG board at [docs/images/vendora-product-direction.svg](images/vendora-product-direction.svg). It is illustrative, not a screenshot or evidence that these screens are implemented.
+- This direction should guide future UI work; verify the active PR stack, existing code, and relevant Vendora skills before implementation. Product images still require a durable local/offline storage and backup strategy.
