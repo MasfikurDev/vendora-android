@@ -2,13 +2,13 @@
 
 Offline-first Android shop management for owners who operate one or more businesses.
 
-> **Current status (2026-10-24):** Early implementation, not production-ready. The app has a Kotlin + Jetpack Compose shell, local shop creation/switching, and shop-scoped product storage implemented on the active feature branch. Product storage currently uses JSON in SharedPreferences; Room/SQLite migration, a complete inventory UI, and end-to-end business workflows are still outstanding. Check [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the authoritative snapshot and history.
+> **Current status (2026-10-25):** Early implementation, not production-ready. The active feature stack now includes shop-scoped product catalog/inventory, stock adjustments and movement history, a basic sales screen, and a multi-product cart/checkout on feature branches. Persistence still uses JSON in SharedPreferences, not Room/SQLite. Check [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the branch-aware snapshot and history.
 
 ## Product goals
 
 - Manage multiple shops under one owner, with strict shop-scoped data access.
 - Work reliably offline; local storage is the source of truth.
-- Track products, purchases, stock movements, sales, returns, expenses, and reports.
+- Track products, stock movements, and basic sales; purchases, returns, expenses, and reports remain planned.
 - Keep financial calculations deterministic and auditable.
 - Support configurable retail business types without forcing every business into the same workflow.
 - Make AI optional; ordinary business operations must never depend on an AI service.
@@ -41,9 +41,10 @@ Staff permissions, multi-device sync, cloud services, forecasting, and specializ
 
 - Store money as integer minor units (poisha), never floating-point currency.
 - Record stock changes as auditable movements; do not silently overwrite inventory history.
-- Use transactions for operations that update a sale and stock together.
+- Validate a complete sale/cart before changing inventory; persist sale lines, stock decrements, and audit movements together. Current SharedPreferences commit is an interim consistency mechanism, not a substitute for a database transaction.
 - Snapshot relevant prices and costs on transaction lines so historical reports remain meaningful.
 - Include shop ownership/scope in relevant data access paths and tests.
+- Verify the complete user workflow after writes: inventory quantities, dashboard summaries, sales history, and stock-movement history must reflect the persisted result when revisiting screens. Do not assume persistence means the UI state refreshed.
 - Use explicit Room migrations and test them when Room is introduced.
 - Never commit credentials, signing keys, private API keys, or real customer data.
 - AI output is untrusted input. Validate tool arguments and permissions, and calculate financial results in application code.
