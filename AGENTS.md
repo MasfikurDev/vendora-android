@@ -56,3 +56,14 @@ These instructions apply to the whole repository unless a closer `AGENTS.md` ove
 - Feature branches may publish branch-specific GitHub prereleases after a successful **push-triggered** build and unit-test run. Pull-request-triggered runs validate the change but should not publish releases.
 - A successful push to `main` uses the separate beta-release path. Feature previews and beta builds are debug APKs, not signed production releases.
 - When changing workflow behavior, update README/status/worklog documentation in the same branch. Record exact commit SHA and CI run links; never infer a published release from workflow configuration alone.
+
+
+## Agent skill routing
+
+Repository-local reusable skills live under [.agents/skills/](.agents/skills/README.md). Load the matching skill before relevant work:
+- End-to-end workflow/state refresh: `.agents/skills/vendora-workflow-verification/SKILL.md`
+- Compose UI, responsive layouts, accessibility, lifecycle: `.agents/skills/android-compose-quality/SKILL.md`
+- Stock/sales/movement integrity and shop isolation: `.agents/skills/inventory-transaction-integrity/SKILL.md`
+- Regression test planning and evidence: `.agents/skills/vendora-testing/SKILL.md`
+- Branches, stacked PRs, reviews, CI, and handoff: `.agents/skills/vendora-git-workflow/SKILL.md`
+- Upstream Google Android guidance is vendored under `.agents/skills/upstream-android/`; consult it for performance, adaptive Compose layouts, and test setup, but verify all recommendations against this repository's actual versions and architecture.
