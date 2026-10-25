@@ -1,6 +1,6 @@
 # Project Status and Transition History
 
-Last verified: **2026-10-24**  
+Last verified: **2026-10-25**  
 Repository: [MasfikurDev/vendora-android](https://github.com/MasfikurDev/vendora-android)
 
 This document is the status ledger for the repository. Update it when implementation, architecture, CI/release behavior, or the active development path changes. Use dated entries so older assumptions are not silently overwritten.
@@ -12,14 +12,16 @@ This document is the status ledger for the repository. Update it when implementa
 - Native Android app using Kotlin, Jetpack Compose, and Material 3.
 - Shop selection/create flow with supported business categories: General store, Grocery, Fashion, Electronics, Hardware, Stationery, Pharmacy.
 - Shop metadata stored locally using SharedPreferences + JSON.
-- A `Product` model and `ProductStore` on the feature branch, including shop-scoped reads/writes, SKU uniqueness per shop, basic validation, and product deletion.
+- A `Product` model and `ProductStore` on the feature stack, including shop-scoped reads/writes, SKU uniqueness per shop, basic validation, product deletion, stock adjustment, and persisted stock-movement history.
+- Basic sales workflow and multi-product cart/checkout are implemented on feature branches; checkout validates all requested lines before updating stock and records sale snapshots and movement entries together in one synchronous SharedPreferences commit.
+- Regression tests cover multi-product checkout, insufficient-stock rejection without partial changes, duplicate cart lines, and stock/sale/movement persistence.
 - GitHub Actions workflow builds a debug APK and runs JVM unit tests.
 - Main branch CI for commit `532689d03b667ec365d59a2f74bec3d22c9fd0fa` passed: [run #26](https://github.com/MasfikurDev/vendora-android/actions/runs/40093372479).
 
 ### In progress / not yet production-ready
 
-- Pull request #13, [Shop selection UX](https://github.com/MasfikurDev/vendora-android/pull/13), is the current feature branch for shop-selection resilience and the initial shop-scoped product-storage foundation. Do not merge without explicit repository-owner approval.
-- The main-branch screen is still primarily the shop-selection experience; a complete product catalog workflow is not yet integrated into the app UI.
+- The feature work is stacked across PRs #15–#20 and is not necessarily integrated into `main`; inspect each PR's base/head and current merge state before describing main as having these features.
+- PR #20, [Multi-product cart and checkout](https://github.com/MasfikurDev/vendora-android/pull/20), adds the multi-product cart on top of the basic sales workflow. Its CI and merge status must be checked against its latest head SHA before claiming validation or integration.
 - Shop and product persistence currently use SharedPreferences + JSON, not Room. This is an interim implementation and is not the planned long-term database.
 - Automated CI runs JVM unit tests and builds the debug APK. Instrumentation tests are not configured as a CI emulator job.
 - Automated main-branch releases are beta prereleases containing a debug APK, not signed production builds.
@@ -27,9 +29,8 @@ This document is the status ledger for the repository. Update it when implementa
 
 ### Not implemented yet
 
-- Room database, DAO/repository persistence, tested migrations.
-- Full inventory UI: product list/search, create/edit flows, stock adjustments, barcode support.
-- Purchase, sale, return, expense, and reporting workflows.
+- Barcode support; a complete purchase, return, expense, and reporting workflow.
+- Room database, DAO/repository persistence, and tested migrations.
 - Backup/export and restore validation.
 - AI provider integration.
 - Multi-device synchronization, staff permissions, and production signing/release pipeline.
@@ -100,3 +101,12 @@ This document is the status ledger for the repository. Update it when implementa
 3. Migrate the interim SharedPreferences/JSON persistence to Room with explicit, tested migrations before financially significant workflows.
 4. Continue with stock movements, purchases, sales, returns, expenses, reports, and backup/export.
 5. Keep signed production distribution separate from debug preview/beta releases.
+
+
+### 2026-10-25 — Sales checkout and cross-screen consistency review
+
+- Feature stack now includes basic sales and multi-product checkout on PR #19/#20 branches; verify current PR states before treating them as integrated into `main`.
+- Checkout validates the full cart before persisting sale-line snapshots, stock decrements, and stock-movement audit entries together. The storage is still SharedPreferences + JSON, so this is an interim single-commit consistency mechanism, not a database transaction or a concurrency-safe multi-process store.
+- Review found a UI-state risk: `ShopDashboard` loads products into remembered state, while navigating into sales and back may leave inventory counts stale even when storage has been updated. Fix and regression verification are required before claiming the end-to-end workflow is complete.
+- New standing quality rule: validate downstream screens after every write, including inventory counts, dashboard summaries, sales history, and stock history; include full-workflow regression coverage where feasible. Distinguish persistence tests from UI/navigation tests, and state that device behavior is unverified unless actually tested on a device/emulator.
+- PR #20 latest known head before this documentation update: `42806562b6458b41301721068401cc7c212903b8`. Check the live PR and CI for newer commits and exact-head results before reporting status.
