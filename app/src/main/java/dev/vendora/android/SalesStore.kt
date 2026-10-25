@@ -14,6 +14,12 @@ class SalesStore(context: Context) {
     fun recordSale(
         productStore: ProductStore,
         shopId: String,
+        lines: List<SaleLineRequest>,
+    ): List<SaleRecord> = productStore.recordSale(shopId, lines)
+
+    fun recordSale(
+        productStore: ProductStore,
+        shopId: String,
         productId: String,
         quantity: Int,
     ): SaleRecord = productStore.recordSale(shopId, productId, quantity)
