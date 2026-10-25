@@ -1,16 +1,15 @@
 package dev.vendora.android
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -26,17 +25,20 @@ fun SalesScreen(
 ) {
     var products by remember(shop.id) { mutableStateOf(productStore.getProducts(shop.id)) }
     var sales by remember(shop.id) { mutableStateOf(salesStore.getSales(shop.id)) }
-    var selectedProductId by remember { mutableStateOf<String?>(null) }
-    var quantityText by remember { mutableStateOf("1") }
+    var cart by remember(shop.id) { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var error by remember { mutableStateOf<String?>(null) }
     var success by remember { mutableStateOf<String?>(null) }
     var confirmSale by remember { mutableStateOf(false) }
 
-    val selectedProduct = products.firstOrNull { it.id == selectedProductId }
-    val quantity = quantityText.toIntOrNull()
-    val total = if (selectedProduct != null && quantity != null && quantity > 0) {
-        runCatching { Math.multiplyExact(selectedProduct.sellingPricePoisha, quantity.toLong()) }.getOrNull()
-    } else null
+    val cartLines = cart.mapNotNull { (id, quantity) ->
+        products.firstOrNull { it.id == id }?.let { it to quantity }
+    }
+    val cartTotal = runCatching {
+        cartLines.fold(0L) { sum, (product, quantity) ->
+            Math.addExact(sum, Math.multiplyExact(product.sellingPricePoisha, quantity.toLong()))
+        }
+    }.getOrNull()
+    val cartQuantity = cart.values.sum()
 
     BackHandler(onBack = onBack)
     Scaffold(
@@ -56,71 +58,97 @@ fun SalesScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Text("Select product", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Only products from this shop are shown.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Products", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Add products to the cart. Only this shop's inventory is available.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (products.isEmpty()) {
                 item {
                     Card(shape = RoundedCornerShape(18.dp)) {
                         Column(Modifier.fillMaxWidth().padding(20.dp)) {
                             Text("No products available", fontWeight = FontWeight.SemiBold)
-                            Text("Add a product to inventory before recording a sale.")
+                            Text("Add products to inventory before recording a sale.")
                         }
                     }
                 }
             }
             items(products, key = { it.id }) { product ->
+                val quantity = cart[product.id] ?: 0
                 Card(
-                    onClick = {
-                        selectedProductId = product.id
-                        error = null
-                        success = null
-                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
+                    border = if (quantity > 0) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
                     colors = CardDefaults.cardColors(
-                        containerColor = if (selectedProductId == product.id)
-                            MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+                        containerColor = if (quantity > 0) MaterialTheme.colorScheme.secondaryContainer
+                        else MaterialTheme.colorScheme.surface,
                     ),
-                    border = if (selectedProductId == product.id)
-                        androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
                 ) {
-                    Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         Column(Modifier.weight(1f)) {
                             Text(product.name, fontWeight = FontWeight.SemiBold)
                             if (product.sku.isNotBlank()) Text("SKU: ${product.sku}", style = MaterialTheme.typography.bodySmall)
-                            Text("Available: ${product.quantity}", style = MaterialTheme.typography.bodySmall)
+                            Text("Stock: ${product.quantity}", style = MaterialTheme.typography.bodySmall)
+                            Text(formatBdt(product.sellingPricePoisha), color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold)
                         }
-                        Column {
-                            Text(formatBdt(product.sellingPricePoisha), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                            if (product.quantity == 0) Text("Out of stock", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            OutlinedButton(
+                                onClick = {
+                                    cart = if (quantity <= 1) cart - product.id
+                                    else cart + (product.id to quantity - 1)
+                                    error = null
+                                },
+                                enabled = quantity > 0,
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                            ) { Text("−") }
+                            Text("$quantity", modifier = Modifier.padding(horizontal = 10.dp),
+                                fontWeight = FontWeight.Bold)
+                            Button(
+                                onClick = {
+                                    cart = cart + (product.id to quantity + 1)
+                                    error = null
+                                    success = null
+                                },
+                                enabled = quantity < product.quantity && quantity < Int.MAX_VALUE,
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                            ) { Text("+") }
                         }
                     }
                 }
             }
-            if (selectedProduct != null) {
-                item {
-                    Card(shape = RoundedCornerShape(18.dp)) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Quantity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            OutlinedTextField(
-                                value = quantityText,
-                                onValueChange = { quantityText = it.filter(Char::isDigit).take(9); error = null },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Units to sell") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            )
-                            Text("In stock: ${selectedProduct.quantity}")
-                            Text("Total: ${total?.let(::formatBdt) ?: "—"}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Button(
-                                onClick = { confirmSale = true },
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
-                                enabled = quantity != null && quantity > 0 && quantity <= selectedProduct.quantity && total != null && total >= 0L,
-                            ) { Text("Review sale") }
-                            if (quantity != null && quantity > selectedProduct.quantity) {
-                                Text("Quantity exceeds available stock.", color = MaterialTheme.colorScheme.error)
+
+            item {
+                Card(shape = RoundedCornerShape(18.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Cart", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        if (cartLines.isEmpty()) {
+                            Text("Your cart is empty.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            cartLines.forEach { (product, quantity) ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("${product.name} × $quantity", modifier = Modifier.weight(1f))
+                                    Text(runCatching {
+                                        formatBdt(Math.multiplyExact(product.sellingPricePoisha, quantity.toLong()))
+                                    }.getOrDefault("—"))
+                                }
                             }
+                            HorizontalDivider()
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Total · $cartQuantity item(s)", fontWeight = FontWeight.Bold)
+                                Text(cartTotal?.let(::formatBdt) ?: "—", style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Button(
+                            onClick = { confirmSale = true; error = null },
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            enabled = cartLines.isNotEmpty() && cartTotal != null && cartTotal >= 0L,
+                        ) { Text("Review checkout") }
+                        if (cartTotal == null) {
+                            Text("Cart total is too large to calculate.", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -139,9 +167,11 @@ fun SalesScreen(
                         Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(Modifier.weight(1f)) {
                                 Text(sale.productName, fontWeight = FontWeight.SemiBold)
-                                Text("${sale.quantity} × ${formatBdt(sale.unitPricePoisha)}", style = MaterialTheme.typography.bodySmall)
+                                Text("${sale.quantity} × ${formatBdt(sale.unitPricePoisha)}",
+                                    style = MaterialTheme.typography.bodySmall)
                                 Text(SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(sale.timestampMillis)),
-                                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Text(formatBdt(sale.totalPoisha), fontWeight = FontWeight.Bold)
                         }
@@ -151,24 +181,29 @@ fun SalesScreen(
         }
     }
 
-    if (confirmSale && selectedProduct != null && quantity != null && total != null) {
+    if (confirmSale && cartLines.isNotEmpty() && cartTotal != null) {
         AlertDialog(
             onDismissRequest = { confirmSale = false },
-            title = { Text("Confirm sale?") },
-            text = { Text("${selectedProduct.name} · ${quantity} unit(s) · ${formatBdt(total)}. This will reduce stock and record the sale.") },
+            title = { Text("Confirm checkout?") },
+            text = { Text("${cartLines.size} product type(s), $cartQuantity item(s), total ${formatBdt(cartTotal)}. Stock and sale history will be saved together.") },
             confirmButton = {
                 Button(onClick = {
                     confirmSale = false
-                    runCatching { salesStore.recordSale(productStore, shop.id, selectedProduct.id, quantity) }
-                        .onSuccess { sale ->
+                    val requestedLines = cartLines.map { (product, quantity) ->
+                        SaleLineRequest(product.id, quantity)
+                    }
+                    runCatching { salesStore.recordSale(productStore, shop.id, requestedLines) }
+                        .onSuccess { completedSales ->
                             products = productStore.getProducts(shop.id)
                             sales = salesStore.getSales(shop.id)
-                            selectedProductId = null
-                            quantityText = "1"
+                            cart = emptyMap()
                             error = null
-                            success = "Sale saved: ${formatBdt(sale.totalPoisha)}"
+                            val completedTotal = completedSales.fold(0L) { sum, sale ->
+                                Math.addExact(sum, sale.totalPoisha)
+                            }
+                            success = "Sale saved: ${formatBdt(completedTotal)}"
                         }
-                        .onFailure { error = it.message ?: "Could not record sale. Check stock history before retrying." }
+                        .onFailure { error = it.message ?: "Could not record sale. Check inventory before retrying." }
                 }) { Text("Confirm sale") }
             },
             dismissButton = { TextButton(onClick = { confirmSale = false }) { Text("Cancel") } },
