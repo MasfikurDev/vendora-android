@@ -6,6 +6,9 @@ description: Review or implement Vendora Compose screens for mobile-first usabil
 # Android Compose quality for Vendora
 
 ## Before changing UI
+- Read [`docs/PRODUCT_DIRECTION.md`](../../../docs/PRODUCT_DIRECTION.md) and its concept board before broad UI work; treat them as proposed product requirements, not proof of implemented screens.
+- Preserve the intended experience: dashboard-first Home, one-tap Sell, image-first Products, business-profile/switching, and real-data-driven Insights. Keep the active business context consistent across all destinations.
+- For product imagery, inspect the current model and storage before implementation; define durable local references, offline loading, fallback states, replacement/deletion cleanup, and backup implications. Do not embed large image blobs in JSON by default.
 - Inspect actual Compose BOM, Kotlin, Android Gradle Plugin, Material 3 dependencies, navigation approach, and nearby screen patterns. Do not introduce APIs based on assumed versions.
 - Keep UI mobile-first and Material 3. Reuse existing components/theme; avoid adding a UI library without a concrete need.
 - Keep business rules and persistence out of composable bodies. Follow existing boundaries and add abstractions only when needed.
