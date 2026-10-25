@@ -15,6 +15,8 @@ data class Product(
     val sellingPricePoisha: Long,
 )
 
+data class SaleLineRequest(val productId: String, val quantity: Int)
+
 data class StockMovement(
     val id: String, val shopId: String, val productId: String, val productName: String,
     val delta: Int, val quantityBefore: Int, val quantityAfter: Int, val reason: String,
@@ -82,33 +84,55 @@ class ProductStore(context: Context) {
     fun getSales(shopId: String): List<SaleRecord> =
         readSales().filter { it.shopId == shopId }.sortedByDescending { it.timestampMillis }
 
-    /** Atomically persist the stock decrement, movement audit entry, and sale record. */
-    fun recordSale(shopId: String, productId: String, quantity: Int): SaleRecord {
-        require(quantity > 0) { "Sale quantity must be greater than zero." }
+    /** Records every cart line with one synchronous persistence commit. */
+    fun recordSale(shopId: String, productId: String, quantity: Int): SaleRecord =
+        recordSale(shopId, listOf(SaleLineRequest(productId, quantity))).single()
+
+    /**
+     * Validates the entire cart before changing state, then commits product stock,
+     * stock movements, and sale line snapshots together.
+     */
+    fun recordSale(shopId: String, lines: List<SaleLineRequest>): List<SaleRecord> {
+        require(shopId.isNotBlank()) { "A shop is required." }
+        require(lines.isNotEmpty()) { "The cart is empty." }
+        require(lines.all { it.productId.isNotBlank() && it.quantity > 0 }) {
+            "Every cart item must have a product and a positive quantity."
+        }
+        val quantities = linkedMapOf<String, Int>()
+        lines.forEach { line ->
+            quantities[line.productId] = Math.addExact(quantities[line.productId] ?: 0, line.quantity)
+        }
         val products = readAll().toMutableList()
-        val index = products.indexOfFirst { it.shopId == shopId && it.id == productId }
-        require(index >= 0) { "Product not found in this shop." }
-        val current = products[index]
-        require(quantity <= current.quantity) { "Not enough stock. Available: ${current.quantity}." }
-        val total = Math.multiplyExact(current.sellingPricePoisha, quantity.toLong())
-        val saleId = UUID.randomUUID().toString()
-        val updated = current.copy(quantity = current.quantity - quantity)
-        products[index] = updated
-        val movement = StockMovement(
-            UUID.randomUUID().toString(), shopId, productId, current.name,
-            -quantity, current.quantity, updated.quantity, "Sale $saleId", System.currentTimeMillis()
-        )
-        val sale = SaleRecord(
-            id = saleId, shopId = shopId, productId = productId, productName = current.name,
-            sku = current.sku, quantity = quantity, unitPricePoisha = current.sellingPricePoisha,
-            totalPoisha = total, timestampMillis = System.currentTimeMillis()
-        )
+        val now = System.currentTimeMillis()
+        val newSales = mutableListOf<SaleRecord>()
+        val newMovements = mutableListOf<StockMovement>()
+        quantities.forEach { (productId, quantity) ->
+            val index = products.indexOfFirst { it.shopId == shopId && it.id == productId }
+            require(index >= 0) { "Product not found in this shop: $productId" }
+            val current = products[index]
+            require(quantity <= current.quantity) {
+                "Not enough stock for ${current.name}. Available: ${current.quantity}."
+            }
+            val total = Math.multiplyExact(current.sellingPricePoisha, quantity.toLong())
+            val saleId = UUID.randomUUID().toString()
+            val updated = current.copy(quantity = current.quantity - quantity)
+            products[index] = updated
+            newMovements += StockMovement(
+                UUID.randomUUID().toString(), shopId, productId, current.name,
+                -quantity, current.quantity, updated.quantity, "Sale $saleId", now
+            )
+            newSales += SaleRecord(
+                id = saleId, shopId = shopId, productId = productId, productName = current.name,
+                sku = current.sku, quantity = quantity, unitPricePoisha = current.sellingPricePoisha,
+                totalPoisha = total, timestampMillis = now
+            )
+        }
         check(preferences.edit()
             .putString(KEY_PRODUCTS, encodeProducts(products))
-            .putString(KEY_MOVEMENTS, encodeMovements(readMovements() + movement))
-            .putString(KEY_SALES, encodeSales(readSales() + sale))
+            .putString(KEY_MOVEMENTS, encodeMovements(readMovements() + newMovements))
+            .putString(KEY_SALES, encodeSales(readSales() + newSales))
             .commit()) { "Could not save sale and stock changes. No sale was confirmed." }
-        return sale
+        return newSales
     }
 
     private fun readSales(): List<SaleRecord> = runCatching {
