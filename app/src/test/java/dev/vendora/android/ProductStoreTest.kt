@@ -137,6 +137,34 @@ class ProductStoreTest {
         assertEquals(emptyList<String>(), store.getProducts("shop-b").map { it.id })
     }
 
+
+    @Test
+    fun stockAdjustmentsAreAuditedAndScopedToShop() {
+        store.saveProduct(product(id = "p1", shopId = "shop-a", quantity = 3))
+        store.saveProduct(product(id = "p2", shopId = "shop-b", quantity = 8))
+
+        store.adjustStock("shop-a", "p1", 2, "Received delivery")
+        store.adjustStock("shop-a", "p1", -1, "Damaged item")
+
+        val history = store.getStockMovements("shop-a", "p1")
+        assertEquals(2, history.size)
+        assertEquals(-1, history.first().delta)
+        assertEquals(5, history.first().quantityBefore)
+        assertEquals(4, history.first().quantityAfter)
+        assertEquals("Damaged item", history.first().reason)
+        assertEquals(emptyList<StockMovement>(), store.getStockMovements("shop-b"))
+    }
+
+    @Test
+    fun stockHistorySurvivesStoreRecreation() {
+        store.saveProduct(product(id = "p1", quantity = 3))
+        store.adjustStock("shop-a", "p1", 1, "Count correction")
+        store = ProductStore(RuntimeEnvironment.getApplication())
+
+        assertEquals(1, store.getStockMovements("shop-a").size)
+        assertEquals("Count correction", store.getStockMovements("shop-a").single().reason)
+    }
+
     private fun product(
         id: String = "product-1",
         shopId: String = "shop-a",
