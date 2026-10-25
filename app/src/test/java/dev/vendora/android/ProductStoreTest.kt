@@ -203,7 +203,7 @@ class ProductStoreTest {
 
         assertEquals(1, store.getSales("shop-a").size)
         assertEquals(emptyList<SaleRecord>(), store.getSales("shop-b"))
-        assertEquals(1, store.getProducts("shop-b").single().quantity.let { 2 - it })
+        assertEquals(2, store.getProducts("shop-b").single().quantity)
     }
 
     private fun product(
