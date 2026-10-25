@@ -71,7 +71,8 @@ CI builds a debug APK and runs JVM unit tests. Instrumentation tests are present
 - Keep `main` buildable.
 - Use focused short-lived feature/documentation branches and open pull requests.
 - Pushes to branches run CI; pull requests targeting `main` run checks.
-- Only a successful push to `main` creates an automated beta prerelease. These are **debug APK beta builds**, not signed production releases.
+- Successful pushes to feature branches publish branch-specific GitHub prereleases for review; these are **debug preview APKs**, not stable beta or production releases.
+- Only a successful push to `main` creates the main beta prerelease. These are **debug APK beta builds**, not signed production releases.
 - Production releases require a separately planned, signed release process and explicit version/tag policy.
 - Do not merge pull requests without explicit authorization from the repository owner.
 
@@ -80,3 +81,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture pr
 ## License
 
 A license has not yet been selected. Do not assume this project is open source merely because the repository is public.
+
+## Feature preview releases
+
+Each successful feature-branch push is intended to publish a branch-specific GitHub prerelease after `assembleDebug` and `testDebugUnitTest` pass. The workflow run must be checked before claiming a release exists. Feature previews are temporary review builds; only `main` publishes the project beta channel.
