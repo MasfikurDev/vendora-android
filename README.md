@@ -8,7 +8,7 @@ Offline-first Android business management for owners who operate one or more bus
 
 Vendora is intended to be a **business-management workspace**, not just an inventory counter. Each shop should feel like a manageable business account with its own identity, image-backed product catalog, sales activity, insights, and settings. The home screen should be an overview/dashboard, and selling should remain one tap away.
 
-![Vendora concept board: dashboard, point of sale, product catalog, and business profile](docs/images/vendora-product-direction.svg)
+![Vendora five-screen concept board: Home dashboard, Products catalog, Sell checkout, Insights analytics, and Business profile](docs/images/vendora-product-direction.svg)
 
 Read the full [Product Direction and UX Requirements](docs/PRODUCT_DIRECTION.md). The image is an illustrative concept, not a screenshot of implemented UI.
 
@@ -38,7 +38,7 @@ Do not describe planned technologies or UI as already implemented. Keep the app 
 
 ## Product experience direction
 
-The proposed mobile-first UX is documented in [Vendora Product Direction](docs/PRODUCT_DIRECTION.md), with an illustrative four-screen concept board at [docs/images/vendora-product-direction.svg](docs/images/vendora-product-direction.svg). It defines the business-profile model, dashboard-first home, always-accessible selling, image-first products, and insights. These are product requirements and concepts, not claims that every screen is already implemented.
+The proposed mobile-first UX is documented in [Vendora Product Direction](docs/PRODUCT_DIRECTION.md), with an illustrative five-screen concept board at [docs/images/vendora-product-direction.svg](docs/images/vendora-product-direction.svg). It defines the business-profile model, dashboard-first home, always-accessible selling, image-first products, and insights. These are product requirements and concepts, not claims that every screen is already implemented.
 
 ## Product scope
 
