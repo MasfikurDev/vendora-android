@@ -24,6 +24,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
     var editing by remember { mutableStateOf<Product?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var productPendingDelete by remember { mutableStateOf<Product?>(null) }
+    var stockAdjustmentError by remember { mutableStateOf<String?>(null) }
 
     BackHandler(onBack = onBack)
     Scaffold(
@@ -49,6 +50,22 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
             Text("Inventory", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text("${products.size} products · ${products.sumOf { it.quantity }} units in stock",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val lowStockCount = products.count { it.quantity <= ProductStore.LOW_STOCK_THRESHOLD }
+            if (lowStockCount > 0) {
+                Spacer(Modifier.height(10.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        "$lowStockCount product(s) at or below ${ProductStore.LOW_STOCK_THRESHOLD} units",
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
                 value = query, onValueChange = { query = it },
@@ -80,12 +97,51 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                                         Text(product.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                         if (product.sku.isNotBlank()) Text("SKU: ${product.sku}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                    Text("Stock ${product.quantity}", style = MaterialTheme.typography.labelLarge)
+                                    Column {
+                                        Text("Stock ${product.quantity}", style = MaterialTheme.typography.labelLarge)
+                                        if (product.quantity <= ProductStore.LOW_STOCK_THRESHOLD) {
+                                            Text(
+                                                if (product.quantity == 0) "Out of stock" else "Low stock",
+                                                color = MaterialTheme.colorScheme.error,
+                                                style = MaterialTheme.typography.labelSmall,
+                                            )
+                                        }
+                                    }
                                 }
                                 Spacer(Modifier.height(8.dp))
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text("Buy ${formatBdt(product.purchasePricePoisha)}", style = MaterialTheme.typography.bodyMedium)
                                     Text("Sell ${formatBdt(product.sellingPricePoisha)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Adjust stock", style = MaterialTheme.typography.labelLarge)
+                                    Row {
+                                        OutlinedButton(
+                                            enabled = product.quantity > 0,
+                                            onClick = {
+                                                runCatching { productStore.adjustStock(shop.id, product.id, -1) }
+                                                    .onSuccess { updated ->
+                                                        products = products.map { if (it.id == updated.id) updated else it }
+                                                        stockAdjustmentError = null
+                                                    }
+                                                    .onFailure { stockAdjustmentError = it.message ?: "Could not adjust stock." }
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                                        ) { Text("−1") }
+                                        Spacer(Modifier.width(8.dp))
+                                        Button(
+                                            onClick = {
+                                                runCatching { productStore.adjustStock(shop.id, product.id, 1) }
+                                                    .onSuccess { updated ->
+                                                        products = products.map { if (it.id == updated.id) updated else it }
+                                                        stockAdjustmentError = null
+                                                    }
+                                                    .onFailure { stockAdjustmentError = it.message ?: "Could not adjust stock." }
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                                        ) { Text("+1") }
+                                    }
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                     TextButton(onClick = { editing = product; error = null; showEditor = true }) { Text("Edit") }
@@ -99,9 +155,16 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
         }
     }
 
-    if (products.isNotEmpty() && query.isNotBlank() && products.none {
-            it.name.contains(query, true) || it.sku.contains(query, true)
-        }) {
+    stockAdjustmentError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { stockAdjustmentError = null },
+            title = { Text("Stock not changed") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { stockAdjustmentError = null }) { Text("OK") },
+        )
+    }
+
+    if (products.isNotEmpty() && query.isNotBlank() && filteredProductsForQuery(products, query).isEmpty()) {
         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
             Column(Modifier.padding(20.dp)) {
                 Text("No matching products", style = MaterialTheme.typography.titleMedium)
@@ -152,6 +215,10 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
             },
         )
     }
+}
+
+private fun filteredProductsForQuery(products: List<Product>, query: String) = products.filter {
+    it.name.contains(query, true) || it.sku.contains(query, true)
 }
 
 @Composable
