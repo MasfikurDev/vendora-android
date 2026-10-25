@@ -13,6 +13,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,6 +27,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var productPendingDelete by remember { mutableStateOf<Product?>(null) }
     var stockAdjustmentError by remember { mutableStateOf<String?>(null) }
+    var showStockHistory by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
     Scaffold(
@@ -37,6 +40,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                     }
                 },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Shops") } },
+                actions = { TextButton(onClick = { showStockHistory = true }) { Text("History") } },
             )
         },
         floatingActionButton = {
@@ -153,6 +157,46 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (showStockHistory) {
+        val movements = productStore.getStockMovements(shop.id)
+        AlertDialog(
+            onDismissRequest = { showStockHistory = false },
+            title = { Text("Stock history", fontWeight = FontWeight.Bold) },
+            text = {
+                if (movements.isEmpty()) {
+                    Text("No stock adjustments recorded yet. Use the +1 or −1 controls to create the first entry.")
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 420.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(movements, key = { it.id }) { movement ->
+                            Card(shape = RoundedCornerShape(14.dp)) {
+                                Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(movement.productName, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                        Text(if (movement.delta > 0) "+${movement.delta}" else "${movement.delta}",
+                                            color = if (movement.delta > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                            fontWeight = FontWeight.Bold)
+                                    }
+                                    Text("${movement.quantityBefore} → ${movement.quantityAfter} units",
+                                        style = MaterialTheme.typography.bodyMedium)
+                                    Text(movement.reason, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault()).format(Date(movement.timestampMillis)),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showStockHistory = false }) { Text("Done") } },
+        )
     }
 
     stockAdjustmentError?.let { message ->
