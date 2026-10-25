@@ -160,7 +160,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
             onDismissRequest = { stockAdjustmentError = null },
             title = { Text("Stock not changed") },
             text = { Text(message) },
-            confirmButton = { TextButton(onClick = { stockAdjustmentError = null }) { Text("OK") },
+            confirmButton = { TextButton(onClick = { stockAdjustmentError = null }) { Text("OK") } },
         )
     }
 
