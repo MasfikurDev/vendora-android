@@ -182,6 +182,33 @@ class ProductStoreTest {
     }
 
     @Test
+    fun completedSaleKeepsProductNameAndPriceSnapshotsAfterProductEdit() {
+        store.saveProduct(product(
+            id = "p-snapshot",
+            name = "Original name",
+            sku = "OLD-SKU",
+            quantity = 4,
+            sellingPricePoisha = 275L,
+        ))
+
+        val sale = store.recordSale("shop-a", "p-snapshot", 2).single()
+        store.saveProduct(product(
+            id = "p-snapshot",
+            name = "Renamed product",
+            sku = "NEW-SKU",
+            quantity = 2,
+            sellingPricePoisha = 350L,
+        ))
+
+        val savedSale = store.getSales("shop-a").single()
+        assertEquals("Original name", savedSale.productName)
+        assertEquals("OLD-SKU", savedSale.sku)
+        assertEquals(275L, savedSale.unitPricePoisha)
+        assertEquals(550L, savedSale.totalPoisha)
+        assertEquals(sale.id, savedSale.id)
+    }
+
+    @Test
     fun saleRejectsOversellingAndDoesNotCreateRecords() {
         store.saveProduct(product(id = "p-sale", quantity = 1))
 

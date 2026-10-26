@@ -100,3 +100,10 @@ This log currently records repository-specific lessons confirmed from Vendora's 
 - On `feat/multi-product-cart`, `ShopDashboard` held inventory in a `remember(shop.id)` snapshot. Returning from `SalesScreen` only hid the sales screen, leaving dashboard stock counts stale after checkout.
 - Updated the sales return callback to reload products for the current shop before showing the dashboard again. This is a focused state-refresh fix; it does not change storage architecture or claim database transaction isolation.
 - Regression verification still required: Android CI/JVM tests for the new commit and device/emulator navigation check. No signing workflow changes were made.
+
+
+## Sale snapshot regression coverage — 2026-10-26
+
+- Added a store regression test on `feat/multi-product-cart` to ensure a completed sale retains its original product name, SKU, unit price, and line total after the current product is edited.
+- This tests persisted historical snapshot behavior only; it does not verify Compose navigation refresh or provide a database transaction guarantee.
+- Automated execution and the checkout return path remain unverified until the exact branch head receives successful CI and UI/device validation.
