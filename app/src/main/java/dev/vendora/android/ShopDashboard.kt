@@ -33,7 +33,10 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
     val context = LocalContext.current
 
     if (showSales) {
-        SalesScreen(shop = shop, productStore = productStore, salesStore = SalesStore(context), onBack = { showSales = false })
+        SalesScreen(shop = shop, productStore = productStore, salesStore = SalesStore(context), onBack = {
+            products = productStore.getProducts(shop.id)
+            showSales = false
+        })
         return
     }
 

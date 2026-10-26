@@ -94,3 +94,9 @@ This log currently records repository-specific lessons confirmed from Vendora's 
 - Add regression checks that failed checkout leaves all stock, sales, and movement records unchanged; successful checkout updates every affected product and creates matching sale/movement records. Keep store-level tests distinct from Compose navigation/UI tests.
 - Current concrete issue to track: `ShopDashboard` remembers products loaded at initial entry; when `SalesScreen` returns, its callback should reload products from `ProductStore`. The source review identified this stale inventory-display risk; actual device behavior has not been verified. Recheck the current branch and fix/test it before describing the workflow as fully verified.
 - Storage caveat: a synchronous SharedPreferences `.commit()` writes several JSON values together in one preferences edit, but this remains interim storage. It does not provide the full guarantees of a database transaction or concurrency control expected for production.
+
+## Checkout return refresh fix — 2026-10-26
+
+- On `feat/multi-product-cart`, `ShopDashboard` held inventory in a `remember(shop.id)` snapshot. Returning from `SalesScreen` only hid the sales screen, leaving dashboard stock counts stale after checkout.
+- Updated the sales return callback to reload products for the current shop before showing the dashboard again. This is a focused state-refresh fix; it does not change storage architecture or claim database transaction isolation.
+- Regression verification still required: Android CI/JVM tests for the new commit and device/emulator navigation check. No signing workflow changes were made.
