@@ -191,7 +191,7 @@ class ProductStoreTest {
             sellingPricePoisha = 275L,
         ))
 
-        val sale = store.recordSale("shop-a", "p-snapshot", 2).single()
+        val sale = store.recordSale("shop-a", "p-snapshot", 2)
         store.saveProduct(product(
             id = "p-snapshot",
             name = "Renamed product",
