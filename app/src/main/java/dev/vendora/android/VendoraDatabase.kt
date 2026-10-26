@@ -27,10 +27,7 @@ data class ShopEntity(
 
 @Entity(
     tableName = "products",
-    indices = [
-        Index(value = ["shopId"]),
-        Index(value = ["shopId", "sku"], unique = true),
-    ],
+    indices = [Index(value = ["shopId"]), Index(value = ["shopId", "sku"])],
 )
 data class ProductEntity(
     @PrimaryKey val id: String,
@@ -115,19 +112,6 @@ interface VendoraDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertSaleLines(sales: List<SaleLineEntity>)
-
-    /**
-     * Call this inside withTransaction when persisting a checkout so sale lines, stock updates,
-     * and stock-movement audit entries commit or roll back together.
-     */
-    @Transaction
-    suspend fun replaceProductAndAppendMovement(
-        product: ProductEntity,
-        movement: StockMovementEntity,
-    ) {
-        upsertProduct(product)
-        insertStockMovements(listOf(movement))
-    }
 }
 
 @Database(
