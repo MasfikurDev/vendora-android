@@ -23,7 +23,7 @@
 - `screenshots/insights.png`
 - `index.html`, a simple gallery with the source build link and commit SHA
 
-The README embeds the stable image paths from the `ui-previews` branch. The gallery URL is `https://MasfikurDev.github.io/vendora-android/`; if GitHub Pages is not enabled for the repository, the branch's `index.html` and raw image links remain available.
+The README embeds the stable image paths from the `ui-previews` branch. The generated gallery is published as `index.html` on the `ui-previews` branch. Raw screenshot links work without enabling GitHub Pages; if Pages is later enabled for that branch, the HTML gallery can be served as a website.
 
 ## Trigger policy
 
