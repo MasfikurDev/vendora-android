@@ -57,6 +57,7 @@ private fun ShopSelectionScreen(
     context: android.content.Context,
 ) {
     val scope = rememberCoroutineScope()
+    val shopTypeOptions = remember(context) { ShopTypeCatalog.load(context) }
     var shops by remember { mutableStateOf(emptyList<Shop>()) }
     var activeShopId by remember { mutableStateOf(shopStore.getActiveShopId()) }
     var openedShopId by remember { mutableStateOf<String?>(null) }
@@ -160,6 +161,7 @@ private fun ShopSelectionScreen(
 
     if (showCreateShop && !loading && error == null) {
         CreateShopDialog(
+            shopTypeOptions = shopTypeOptions,
             onDismiss = { if (shops.isNotEmpty()) showCreateShop = false },
             onCreate = { name, businessType ->
                 scope.launch {
@@ -178,11 +180,16 @@ private fun ShopSelectionScreen(
 }
 
 @Composable
-private fun CreateShopDialog(onDismiss: () -> Unit, onCreate: (String, String) -> Unit) {
+private fun CreateShopDialog(
+    shopTypeOptions: List<ShopTypeOption>,
+    onDismiss: () -> Unit,
+    onCreate: (String, String) -> Unit,
+) {
     var name by remember { mutableStateOf("") }
-    var businessType by remember { mutableStateOf("General store") }
+    var businessType by remember(shopTypeOptions) {
+        mutableStateOf(shopTypeOptions.firstOrNull { it.id == "general_store" }?.labelEn ?: "General store")
+    }
     var typeMenuExpanded by remember { mutableStateOf(false) }
-    val businessTypes = listOf("General store", "Grocery", "Fashion", "Electronics", "Hardware", "Stationery", "Pharmacy")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -208,11 +215,19 @@ private fun CreateShopDialog(onDismiss: () -> Unit, onCreate: (String, String) -
                             Text("⌄")
                         }
                         DropdownMenu(expanded = typeMenuExpanded, onDismissRequest = { typeMenuExpanded = false }) {
-                            businessTypes.forEach { type ->
-                                DropdownMenuItem(text = { Text(type) }, onClick = {
-                                    businessType = type
-                                    typeMenuExpanded = false
-                                })
+                            shopTypeOptions.forEach { type ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(type.labelEn)
+                                            Text(type.labelBn, style = MaterialTheme.typography.bodySmall, color = VendoraMuted)
+                                        }
+                                    },
+                                    onClick = {
+                                        businessType = type.labelEn
+                                        typeMenuExpanded = false
+                                    },
+                                )
                             }
                         }
                     }
