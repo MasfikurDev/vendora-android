@@ -9,6 +9,8 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import java.io.IOException
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -18,11 +20,15 @@ import org.junit.runner.RunWith
 class VendoraCheckoutInstrumentedTest {
     private lateinit var database: VendoraDatabase
     private lateinit var repository: VendoraRepository
+    private lateinit var context: Context
     private val dao get() = database.vendoraDao()
 
     @Before
     fun setUp() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
+        context = ApplicationProvider.getApplicationContext()
+        context.getSharedPreferences("vendora_shops", Context.MODE_PRIVATE).edit().clear().commit()
+        context.getSharedPreferences("vendora_products", Context.MODE_PRIVATE).edit().clear().commit()
+        context.getSharedPreferences("vendora_migration", Context.MODE_PRIVATE).edit().clear().commit()
         database = Room.inMemoryDatabaseBuilder(context, VendoraDatabase::class.java).build()
         repository = VendoraRepository(database)
     }
@@ -112,6 +118,39 @@ class VendoraCheckoutInstrumentedTest {
         assertEquals(1, repository.getProducts("shop-b").size)
         assertNotNull(repository.getProduct("shop-a", "sku-a"))
         assertNull(repository.getProduct("shop-b", "sku-a"))
+    }
+
+    @Test
+    fun legacyImportIsIdempotentAndPreservesOriginalJson() = runBlocking {
+        val shopsJson = """[{"id":"legacy-shop","name":"Legacy Shop","businessType":"General"}]"""
+        val productsJson = """[{"id":"legacy-product","shopId":"legacy-shop","name":"Legacy Product","sku":"LEG-1","quantity":2,"purchasePricePoisha":100,"sellingPricePoisha":200}]"""
+        context.getSharedPreferences("vendora_shops", Context.MODE_PRIVATE).edit().putString("shops", shopsJson).commit()
+        context.getSharedPreferences("vendora_products", Context.MODE_PRIVATE).edit().putString("products", productsJson).commit()
+
+        val importer = LegacyDataImporter(context)
+        importer.importIfNeeded(database)
+        importer.importIfNeeded(database)
+
+        assertEquals(1, repository.getShops().size)
+        assertEquals(1, repository.getProducts("legacy-shop").size)
+        assertEquals(shopsJson, context.getSharedPreferences("vendora_shops", Context.MODE_PRIVATE).getString("shops", null))
+        assertEquals(productsJson, context.getSharedPreferences("vendora_products", Context.MODE_PRIVATE).getString("products", null))
+    }
+
+    @Test
+    fun malformedLegacyJsonFailsWithoutDeletingSourceAndCanBeRetried() = runBlocking {
+        val shopsPreferences = context.getSharedPreferences("vendora_shops", Context.MODE_PRIVATE)
+        shopsPreferences.edit().putString("shops", "{malformed").commit()
+
+        val firstAttempt = runCatching { LegacyDataImporter(context).importIfNeeded(database) }
+        assertTrue(firstAttempt.exceptionOrNull() is IOException)
+        assertEquals("{malformed", shopsPreferences.getString("shops", null))
+        assertTrue(repository.getShops().isEmpty())
+
+        val validJson = """[{"id":"recovered-shop","name":"Recovered Shop","businessType":"General"}]"""
+        shopsPreferences.edit().putString("shops", validJson).commit()
+        LegacyDataImporter(context).importIfNeeded(database)
+        assertEquals("recovered-shop", repository.getShops().single().id)
     }
 
     private suspend fun seedShopAndProduct(shopId: String, productId: String, quantity: Int) {
