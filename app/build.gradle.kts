@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val ciRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+val debugKeystorePath = System.getenv("DEBUG_KEYSTORE_PATH")
+val debugKeystorePassword = System.getenv("DEBUG_KEYSTORE_PASSWORD")
+val debugKeyAlias = System.getenv("DEBUG_KEY_ALIAS")
+val debugKeyPassword = System.getenv("DEBUG_KEY_PASSWORD")
+
 android {
     namespace = "dev.vendora.android"
     compileSdk = 36
@@ -13,10 +19,35 @@ android {
         applicationId = "dev.vendora.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        versionCode = ciRunNumber ?: 1
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (debugKeystorePath != null) {
+            create("persistentDebug") {
+                storeFile = file(debugKeystorePath)
+                storePassword = requireNotNull(debugKeystorePassword) {
+                    "DEBUG_KEYSTORE_PASSWORD must be set when DEBUG_KEYSTORE_PATH is set"
+                }
+                keyAlias = requireNotNull(debugKeyAlias) {
+                    "DEBUG_KEY_ALIAS must be set when DEBUG_KEYSTORE_PATH is set"
+                }
+                keyPassword = requireNotNull(debugKeyPassword) {
+                    "DEBUG_KEY_PASSWORD must be set when DEBUG_KEYSTORE_PATH is set"
+                }
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            if (debugKeystorePath != null) {
+                signingConfig = signingConfigs.getByName("persistentDebug")
+            }
+        }
     }
 
     buildFeatures {
