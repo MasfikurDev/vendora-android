@@ -70,3 +70,16 @@ Earlier snapshots described SharedPreferences/JSON as the current storage and Ro
 3. Add explicit schema migrations and migration tests before changing Room entities or database version.
 4. Design product archival, sale receipt grouping, and persistence-level SKU/ownership constraints with a tested migration plan.
 5. Continue product UI and business workflows only alongside regression tests.
+
+
+### 2026-10-28 — Historical CI run audit
+
+The older run history was reviewed before consolidating the current workflow:
+
+- [Run #40311983219](https://github.com/MasfikurDev/vendora-android/actions/runs/40311983219) and [run #40314397197](https://github.com/MasfikurDev/vendora-android/actions/runs/40314397197) completed their build and unit-test jobs successfully under the older workflow. Their feature-preview release steps also ran; that is historical behavior, not the current manual-dispatch policy.
+- [Run #40250634201](https://github.com/MasfikurDev/vendora-android/actions/runs/40250634201) built the APK but failed compiling JVM tests: `ProductStoreTest.kt:194` had an unresolved `single` reference. Treat that as an old test-source compilation defect, not an APK-build failure.
+- [Run #40316840056](https://github.com/MasfikurDev/vendora-android/actions/runs/40316840056) and [run #40316824097](https://github.com/MasfikurDev/vendora-android/actions/runs/40316824097) failed during dependency metadata validation because their respective branch dependency graphs could not resolve `androidx.lifecycle:runtime-ktx:2.9.4` and `androidx.lifecycle:runtime-ktx:2.8.7`. Those were old branch configurations; do not assume they describe current main.
+- [Run #40317257417](https://github.com/MasfikurDev/vendora-android/actions/runs/40317257417) failed at the same dependency-validation stage for `androidx.lifecycle:runtime-ktx:2.8.7`; subsequent build/test/artifact steps were skipped. It was not evidence of a checkout-test failure.
+- The current main dependency catalog uses `androidx.lifecycle:lifecycle-runtime:2.9.4`, and [run #40674001494](https://github.com/MasfikurDev/vendora-android/actions/runs/40674001494) passed build, JVM tests, instrumentation-test source compilation, persistent signing-certificate verification, and artifact upload on the merged workflow commit.
+
+The actionable lesson is to identify the exact failing step and branch before changing code. Build success, test compilation, instrumentation execution, signing verification, artifact upload, and release publication are distinct outcomes. Do not add an emulator to routine CI to address dependency-resolution or JVM test-compilation failures.
