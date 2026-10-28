@@ -162,7 +162,7 @@ jobs:
             echo "- **Branch:** ${GITHUB_REF_NAME}"
             echo "- **Commit:** ${GITHUB_SHA}"
             echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
-            echo "- **CI validation:** dependency metadata, debug APK build, APK signature verification, and JVM unit tests passed."
+            echo "- **CI validation:** dependency metadata, debug APK build, JVM unit tests, emulator instrumentation tests, APK signature verification, and persistent-certificate comparison passed where applicable."
             echo "- **APK:** app-debug.apk; $SIGNING_NOTE"\n            echo "- **APK signing certificate SHA-256:** ${APK_CERT_SHA256:-unavailable}"
             echo "- **Version code:** ${GITHUB_RUN_NUMBER}"
             echo
@@ -206,7 +206,7 @@ jobs:
           retention-days: 14
 
       - name: Publish requested feature preview
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main' || github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]')
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-preview-${{ github.run_number }}
