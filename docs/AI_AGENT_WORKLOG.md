@@ -28,7 +28,7 @@ This is a durable handoff for coding agents. It records repository-specific pitf
 
 Current workflow: `.github/workflows/android.yml`.
 
-- Relevant pushes to `main` and pull requests targeting `main` run CI. Feature branches are built using manual workflow dispatch; feature pushes do not automatically run this workflow. Emulator-backed instrumentation tests are opt-in via `run_instrumentation` (default `false`) and must not run on routine pushes/PRs.
+- Relevant pushes to `main` and pull requests targeting `main` run CI. Feature branches are built using manual workflow dispatch; feature pushes do not automatically run this workflow. Routine CI runs build/JVM tests and compiles instrumentation-test sources without an emulator. Emulator-backed execution is opt-in via `run_instrumentation` (default `false`) and must not run on routine pushes/PRs.
 - Leave `publish_release` unchecked for a workflow artifact only. Check it only when a GitHub prerelease is explicitly wanted.
 - Same-repository builds use the persistent debug keystore secrets. Fork PRs must not receive repository secrets and use temporary signing; those APKs cannot update persistent-key installs.
 - A valid APK signature alone does not prove update compatibility. Compare the APK's SHA-256 certificate fingerprint against the configured persistent keystore, and confirm the application ID and version code.
@@ -38,7 +38,7 @@ Current workflow: `.github/workflows/android.yml`.
 ## Testing guidance
 
 - Add JVM unit tests for pure business rules and validation.
-- Add Room-backed instrumentation tests for transaction behavior, persistence, and shop isolation. Keep emulator execution opt-in unless the user explicitly chooses to pay the routine CI time cost.
+- Add Room-backed instrumentation tests for transaction behavior, persistence, and shop isolation. Compile their sources in routine CI, but keep emulator execution opt-in unless the user explicitly requests a runtime test. Do not add emulator startup to every PR/push.
 - Critical checkout regressions include successful sale, insufficient stock, rollback/no partial writes, price snapshots, totals, and cross-shop access rejection.
 - Migration tests should cover empty storage, valid historical JSON, malformed records, duplicate/colliding IDs, partial import retry, and marker-write failure where practical.
 - Do not claim instrumentation tests are CI-covered unless an emulator/device job is configured and the exact run passes.
@@ -77,6 +77,13 @@ Prefer GitHub auto-merge only when available and when the exact latest PR head h
 - Added persistent debug certificate fingerprint comparison to the Android workflow.
 - Added emulator-backed instrumentation tests for checkout stock deduction, insufficient-stock rollback, and shop-scoped product/SKU validation.
 - Updated README and project status to match the Room implementation and actual manual feature-branch workflow.
-- Verification is pending the exact PR CI run and a physical-device update test. Do not mark this change complete until those results are inspected.
+- Run #251 passed for the prior PR head: build, JVM tests, persistent signing-certificate comparison, and artifact upload succeeded; emulator instrumentation was skipped as configured. The physical-device update test remains unverified. A later workflow-only optimization must be verified against its own run.
 
 Older worklog entries claimed automatic feature-branch push prereleases and described Room as future work. Those are historical states, not the current workflow or architecture.
+
+## CI cost and coverage policy — 2026-10-28
+
+- Routine CI should provide fast deterministic feedback: build the debug APK, run JVM unit tests, compile Android instrumentation-test sources, verify APK signing/certificate consistency, and upload the artifact.
+- Do not start an emulator on routine pushes or pull requests. Dispatch the workflow with `run_instrumentation=true` when actual Room/Android runtime validation is needed.
+- Use shallow checkout and Gradle build caching; keep workflow artifacts for a short, useful period. Do not add expensive checks to the default path without a clear risk-reduction benefit.
+- A skipped instrumentation step is an intentional time-saving choice, not a passed instrumentation test. Report it explicitly.
