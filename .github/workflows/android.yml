@@ -101,13 +101,40 @@ jobs:
       - name: Build and run unit tests
         run: ./gradlew --no-daemon :app:checkDebugAarMetadata assembleDebug testDebugUnitTest
 
-      - name: Verify APK signature
+      - name: Run database and critical-flow instrumentation tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          disable-animations: true
+          script: ./gradlew --no-daemon :app:connectedDebugAndroidTest
+
+      - name: Verify APK signature and persistent certificate
         shell: bash
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/debug/app-debug.apk"
+          APK_SIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           test -s "$APK"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          "$APK_SIGNER" verify --verbose "$APK"
+
+          APK_CERT_SHA256=$("$APK_SIGNER" verify --print-certs "$APK" | awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print $2; exit}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          if [[ -z "$APK_CERT_SHA256" ]]; then
+            echo "::error::Could not read APK signing certificate fingerprint."
+            exit 1
+          fi
+          echo "APK signing certificate SHA-256: $APK_CERT_SHA256"
+
+          if [[ -n "${DEBUG_KEYSTORE_PATH:-}" ]]; then
+            KEY_CERT_SHA256=$(keytool -exportcert -keystore "$DEBUG_KEYSTORE_PATH" -alias "$DEBUG_KEY_ALIAS" -storepass "$DEBUG_KEYSTORE_PASSWORD" -keypass "$DEBUG_KEY_PASSWORD" | sha256sum | awk '{print $1}')
+            if [[ "$APK_CERT_SHA256" != "$KEY_CERT_SHA256" ]]; then
+              echo "::error::APK certificate does not match the configured persistent Vendora debug key."
+              exit 1
+            fi
+            echo "Persistent debug certificate fingerprint matches."
+          else
+            echo "::warning::Fork PR build uses temporary signing; it cannot update persistent-key installs."
+          fi
 
       - name: Prepare build metadata and automatic testing notes
         shell: bash
@@ -135,7 +162,7 @@ jobs:
             echo "- **Commit:** ${GITHUB_SHA}"
             echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
             echo "- **CI validation:** dependency metadata, debug APK build, APK signature verification, and JVM unit tests passed."
-            echo "- **APK:** app-debug.apk; $SIGNING_NOTE"
+            echo "- **APK:** app-debug.apk; $SIGNING_NOTE"\n            echo "- **APK signing certificate SHA-256:** ${APK_CERT_SHA256:-unavailable}"
             echo "- **Version code:** ${GITHUB_RUN_NUMBER}"
             echo
             echo "## Changes in this commit"
@@ -161,7 +188,7 @@ jobs:
             echo "Minimum Android SDK: 26 (Android 8.0)"
             echo "Target Android SDK: 36"
             echo "Java: 17"
-            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest, apksigner verify passed"
+            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest, connectedDebugAndroidTest, apksigner verify, and persistent-certificate comparison passed when applicable"\n            echo "APK signing certificate SHA-256: ${APK_CERT_SHA256:-unavailable}"
             echo "APK filename: app-debug.apk"
           } > BUILD-INFO.txt
 
