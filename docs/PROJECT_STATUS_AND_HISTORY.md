@@ -7,69 +7,55 @@ This document is the status ledger for the repository. Update it when implementa
 
 ## Current snapshot
 
-> **Current implementation note (2026-10-28):** This section supersedes older snapshots below where they say Room, the inventory UI, or selling workflows are not implemented. Those statements are retained as historical context, not current status.
+> This snapshot describes the repository state as inspected on 2026-10-28 and distinguishes the default branch from open pull-request work. Re-check live branch and CI state before treating these notes as current.
 
-### Implemented on main at the last inspected revision
+### Default branch baseline
 
-- Kotlin + Jetpack Compose + Material 3 mobile app with shop selection and a shop dashboard.
-- Room version 1 database for shops, products, sale-line snapshots, and stock movements.
-- One-time legacy SharedPreferences/JSON import with malformed-record validation and preservation of original data on import errors.
-- Shop-scoped product CRUD and SKU duplicate checks, stock adjustments, multi-item cart, and checkout transaction intended to commit sale lines, stock deductions, and movement records together.
-- JVM unit tests and debug APK build in CI. CI does not run Android instrumentation tests on an emulator.
-- Latest inspected main SHA before this branch: `39fda25cf4225e88a7f7906d2db4e9b8000226c1`.
+- The last specifically recorded `main` commit is `39fda25cf4225e88a7f7906d2db4e9b8000226c1`; verify the live default branch before using this SHA as current.
+- The app is Kotlin + Jetpack Compose + Material 3.
+- Room-backed shop, product, and checkout foundations are present in the codebase history; Room schema version and reusable metadata vary across the stacked feature branches listed below.
+- CI builds a debug APK and runs configured JVM unit tests. The current workflow does not execute Android instrumentation tests on an emulator/device.
+- Debug preview/beta APKs are not production-signed releases.
 
-### Active checkout-integrity change
+### Open, dependent pull requests
 
-- Branch: `fix/checkout-integrity-prerelease`.
-- Adds Android instrumentation tests for successful checkout stock/sale/movement consistency, insufficient-stock rollback, and shop isolation.
-- These instrumentation tests require compilation and device/emulator execution before their behavior can be considered verified. Do not treat test source alone as a passing test result.
-- Current prerelease artifacts are debug/preview APKs, not production-signed builds.
+| PR | Branch | Purpose | Dependency / status |
+| --- | --- | --- | --- |
+| [#30](https://github.com/MasfikurDev/vendora-android/pull/30) | `feat/reusable-product-details` | Reusable brand/category/unit options, product metadata, Room v1→v2 migration, legacy import updates | Open; base feature dependency |
+| [#31](https://github.com/MasfikurDev/vendora-android/pull/31) | `feat/shop-type-taxonomy-open-data` | Offline shop-type catalog, Bengali labels, source/provenance guidance | Open; based on #30 |
+| [#32](https://github.com/MasfikurDev/vendora-android/pull/32) | `docs/licensing-and-third-party-notices` | Apache-2.0 source license, third-party notices, project documentation and community guidance | Open; stacked on #31 |
 
-### Active reusable-product-details change
+Do not assume these PR changes are available on `main` until the relevant PRs are merged. Preserve dependency order: #30 → #31 → #32. Recheck each PR's current base, head SHA, required checks, and mergeability before merging or retargeting.
 
-- Branch: `feat/reusable-product-details`, based on the checkout-integrity branch head `702c9ce30872901a3bdbb11510ac0929001ad867`.
-- Adds brand, category, unit, barcode, and configurable low-stock threshold fields to products.
-- Adds shop-scoped reusable brand/category/unit options in Room, retained when the product that introduced them is deleted.
-- Adds explicit Room v1→v2 migration and updates the legacy JSON importer to accept optional metadata.
-- Adds instrumentation coverage for saved-option reuse. CI compilation and the migration behavior must still be checked against the actual PR run; instrumentation tests are not executed on an emulator in current CI.
-- Product barcode entry is implemented; camera scanning is not included. Further roadmap items are recorded in [Reusable product details](product/reusable-product-details.md).
+### Implemented or present in the active development stack
 
-### Implemented in the repository
+- Shop selection/creation and shop-scoped business data.
+- Room persistence with a legacy SharedPreferences/JSON import path.
+- Product metadata fields including brand, category, unit, barcode text, and configurable low-stock threshold.
+- Reusable brand/category/unit options scoped by shop.
+- Multi-item cart and checkout foundations designed to commit sale lines, stock deductions, and movement records transactionally.
+- Bundled shop-type catalog with stable internal IDs, English/Bengali labels, aliases, and OSM reference tags.
+- Instrumentation test source for checkout integrity, shop isolation, reusable options, and catalog invariants.
 
-- Native Android app using Kotlin, Jetpack Compose, and Material 3.
-- Shop selection/create flow with supported business categories: General store, Grocery, Fashion, Electronics, Hardware, Stationery, Pharmacy.
-- Shop metadata stored locally using SharedPreferences + JSON.
-- A `Product` model and `ProductStore` on the feature branch, including shop-scoped reads/writes, SKU uniqueness per shop, basic validation, and product deletion.
-- GitHub Actions workflow builds a debug APK and runs JVM unit tests.
-- Main branch CI for commit `532689d03b667ec365d59a2f74bec3d22c9fd0fa` passed: [run #26](https://github.com/MasfikurDev/vendora-android/actions/runs/40093372479).
+These are implementation and test-source statements, not a claim that all behavior has passed runtime verification. Consult each PR's exact-head CI run and execute instrumentation tests on a device/emulator before treating the relevant flows as verified.
 
-### In progress / not yet production-ready
+### Known gaps and non-goals for the current preview
 
-- Pull request #13, [Shop selection UX](https://github.com/MasfikurDev/vendora-android/pull/13), is the current feature branch for shop-selection resilience and the initial shop-scoped product-storage foundation. Do not merge without explicit repository-owner approval.
-- The main-branch screen is still primarily the shop-selection experience; a complete product catalog workflow is not yet integrated into the app UI.
-- Shop and product persistence currently use SharedPreferences + JSON, not Room. This is an interim implementation and is not the planned long-term database.
-- Automated CI runs JVM unit tests and builds the debug APK. Instrumentation tests are not configured as a CI emulator job.
-- Automated main-branch releases are beta prereleases containing a debug APK, not signed production builds.
-- No license has been selected; do not imply a license or open-source permissions.
+- Android instrumentation tests are not executed by the current CI workflow.
+- The selected shop-type ID is not yet persisted as a canonical Room field; the existing business-type label is retained for compatibility.
+- Camera barcode scanning, product image management, complete purchase/return/expense workflows, backup/restore validation, and production signing are not established as complete by this snapshot.
+- Optional Open Food Facts lookup, GS1 interoperability, formal BSIC mapping, and customs HS-code workflows are research/future possibilities, not shipped integrations.
+- No claim is made that Vendora verifies trade licenses, VAT/TIN status, pharmacy permissions, product authenticity, tax compliance, or customs compliance.
+- No production support window, response-time SLA, or bug-bounty program is promised.
 
-### Not implemented yet
+### Verification rules
 
-- Room database, DAO/repository persistence, tested migrations.
-- Full inventory UI: product list/search, create/edit flows, stock adjustments, barcode support.
-- Purchase, sale, return, expense, and reporting workflows.
-- Backup/export and restore validation.
-- AI provider integration.
-- Multi-device synchronization, staff permissions, and production signing/release pipeline.
-
-## Source-of-truth rules
-
-1. The code and current GitHub workflow are authoritative for what is implemented.
-2. The README summarizes the current product and engineering status; this file records more detail and transitions.
-3. `AGENTS.md` and `docs/AI_AGENT_WORKLOG.md` define agent workflow and record verified troubleshooting lessons.
-4. Architecture principles and product scope describe intended constraints, not proof that the corresponding feature exists.
-5. Mark a planned item as implemented only after code and relevant tests exist.
-6. Record observed CI results with a run link; never infer success from a commit alone.
-7. If a document conflicts with this snapshot, correct it in the same change that discovers the conflict and add a history entry below.
+1. The exact target branch's source and workflow are authoritative.
+2. Check CI against the latest PR head SHA; an older green run does not validate a later commit.
+3. Distinguish build success, JVM unit tests, instrumentation source compilation, and instrumentation runtime execution.
+4. A release exists only when the workflow result and GitHub Releases page confirm it.
+5. Update this snapshot when the dependency graph, feature status, CI behavior, or release policy changes.
+6. Keep older contradictory entries only as dated history; do not use them as current implementation guidance.
 
 ## Transition history
 
