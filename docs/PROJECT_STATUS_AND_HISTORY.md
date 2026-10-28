@@ -15,14 +15,14 @@ This file records the latest known implementation and keeps historical transitio
 - Legacy SharedPreferences/JSON importer that validates records, imports in a database transaction, and preserves original preferences.
 - Repository operations for shop/product persistence, product stock movements, and shop-scoped reads.
 - Checkout runs in a Room transaction, validates cart stock before writing, snapshots selling price and cost, records sale lines, deducts stock, and appends stock movements.
-- GitHub Actions builds a debug APK, runs JVM unit tests, verifies the APK signature, and uploads a workflow artifact. Emulator instrumentation is opt-in on manual workflow dispatch and disabled by default.
-- Persistent debug signing is configured through GitHub Actions secrets. This branch adds certificate fingerprint comparison and critical-flow instrumentation tests; the new run must finish before these changes are considered CI-verified.
+- GitHub Actions builds a debug APK, runs JVM unit tests, compiles instrumentation-test sources without starting an emulator, verifies the APK signature and persistent signing certificate when secrets are available, and uploads a workflow artifact. Full emulator instrumentation is opt-in on manual dispatch and disabled by default.
+- Run #251 passed the previous PR head `90c7bd5e368e605d064f1461b29de2af8eb90c37`: build, JVM tests, signing checks, and artifact upload succeeded; emulator execution was intentionally skipped. Subsequent workflow optimizations require their own run before they are considered verified.
 
 ### Known limitations / risks
 
 - Early implementation; not production-ready for sole storage of real business records.
 - Database migration/import scenarios need broader automated tests, including interrupted and legacy-format cases.
-- Checkout and shop-isolation instrumentation tests are being added in this change; they must pass on the exact PR head before merge.
+- Checkout and shop-isolation instrumentation tests exist, but a passing build that skips emulator execution does not prove their runtime behavior. Run the opt-in instrumentation job before relying on these tests as runtime evidence.
 - Product deletion is currently a hard delete. Define archival behavior and audit retention before formal financial auditing.
 - Database schema currently lacks foreign-key constraints and database-enforced case-insensitive SKU uniqueness. Repository validation helps but does not guarantee every write path enforces these rules.
 - No verified physical-device update test is recorded here. APK update compatibility requires the same application ID and signing certificate and a version code greater than the installed app's.
@@ -35,7 +35,7 @@ The current workflow is `.github/workflows/android.yml`.
 
 - Relevant pushes to `main` run CI.
 - Pull requests targeting `main` run CI.
-- Feature branches are built by manual workflow dispatch; feature pushes do not automatically run this workflow.
+- Feature branches are built by manual workflow dispatch; feature pushes do not automatically run this workflow. The routine job uses a shallow checkout, Gradle build cache, and compiles instrumentation test sources without launching an emulator.
 - Leave `publish_release` unchecked to upload a workflow artifact only. Enable it only when a GitHub prerelease is intentionally requested.
 - Same-repository builds must use the persistent debug keystore secrets. Fork PR builds do not receive repository secrets and therefore use temporary signing.
 - CI must verify APK signing and compare the APK certificate fingerprint to the configured keystore when that keystore is available.
@@ -57,7 +57,7 @@ The current workflow is `.github/workflows/android.yml`.
 - Added explicit APK signing-certificate fingerprint verification against the configured persistent keystore.
 - Added Android instrumentation regression coverage for atomic checkout, insufficient-stock rollback, and shop-scoped product/SKU validation. After recognizing the runtime cost, emulator execution was changed to an opt-in manual-dispatch input (`run_instrumentation`, default `false`) rather than part of routine CI.
 - Corrected README and status text to describe the current Room implementation and manual feature-branch build trigger instead of the old SharedPreferences-only architecture and automatic feature-push release claims.
-- Verification status: pending the new workflow run on this change and a physical-device update test. Do not infer success from source changes alone.
+- Verification status at the time of this entry: run #251 passed the prior PR head, with emulator instrumentation skipped by design. The follow-up workflow optimization is a separate change and must be checked against its own run. Physical-device update compatibility remains unverified.
 
 ### 2026-10-24 — Earlier implementation and workflow notes
 
@@ -65,7 +65,7 @@ Earlier snapshots described SharedPreferences/JSON as the current storage and Ro
 
 ## Recommended follow-up after this change
 
-1. Inspect the exact CI run for this branch and resolve any compile, JVM-test, or signing failures; run emulator instrumentation only when explicitly requested.
+1. Inspect the exact CI run for the latest workflow commit and resolve compile, JVM-test, or signing failures. Routine CI compiles test sources; dispatch with `run_instrumentation=true` only when runtime database validation is needed.
 2. Install its persistent-key APK over the current app if the signing fingerprint matches; if Android still rejects it, capture the exact Package Installer error and compare installed/new APK metadata.
 3. Add explicit schema migrations and migration tests before changing Room entities or database version.
 4. Design product archival, sale receipt grouping, and persistence-level SKU/ownership constraints with a tested migration plan.
