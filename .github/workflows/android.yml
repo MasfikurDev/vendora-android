@@ -149,12 +149,12 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  publish-preview:
-    name: Publish requested preview
+  publish-feature-preview:
+    name: Publish feature preview
     needs: verify
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.publish_release == true) ||
-      (github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]'))
+      github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main' ||
+      github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -167,11 +167,43 @@ jobs:
           name: vendora-build-${{ github.sha }}
           path: artifacts
 
-      - name: Publish debug preview release
+      - name: Publish feature preview release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref == 'refs/heads/main' && format('v0.1.0-beta-{0}', github.run_number) || format('v0.1.0-preview-{0}', github.run_number) }}
-          name: ${{ github.ref == 'refs/heads/main' && format('Vendora Beta 0.1.0 — Build {0}', github.run_number) || format('Vendora Phone Test — {0} #{1}', github.ref_name, github.run_number) }}
+          tag_name: v0.1.0-preview-${{ github.run_number }}
+          name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
+          body_path: artifacts/RELEASE-NOTES.md
+          files: |
+            artifacts/app-debug.apk
+            artifacts/SHA256SUMS.txt
+            artifacts/BUILD-INFO.txt
+            artifacts/RELEASE-NOTES.md
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+
+  publish-main-beta:
+    name: Publish main beta
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download verified build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vendora-build-${{ github.sha }}
+          path: artifacts
+
+      - name: Publish main beta release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-beta-${{ github.run_number }}
+          name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
           body_path: artifacts/RELEASE-NOTES.md
           files: |
             artifacts/app-debug.apk
