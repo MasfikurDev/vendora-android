@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "defaultLocale": "en",
+  "sourceNotes": {
+    "taxonomyReference": "OpenStreetMap Wiki, Key:shop and Shops",
+    "taxonomyReferenceUrl": "https://wiki.openstreetmap.org/wiki/Key:shop",
+    "taxonomyLicense": "Open Database License (ODbL) 1.0 applies to OpenStreetMap database content; attribution and share-alike obligations may apply to adapted database contents.",
+    "localization": "Bengali labels and aliases are Vendora-authored translations, not official government classifications.",
+    "regulatoryNote": "This is an app navigation/onboarding taxonomy, not a legal, tax, licensing, or industry classification. For official Bangladesh industry classification consult BBS BSIC 2020; for import/export goods classification consult Bangladesh Customs HS-code resources."
+  },
+  "shopTypes": [
+    {"id":"general_store","labelEn":"General store","labelBn":"মুদি ও সাধারণ দোকান","aliases":["general","general shop","convenience store"],"osmTags":["shop=general","shop=convenience"]},
+    {"id":"grocery","labelEn":"Grocery / convenience","labelBn":"মুদি দোকান","aliases":["grocery","grocer","mini market"],"osmTags":["shop=convenience","shop=supermarket"]},
+    {"id":"supermarket","labelEn":"Supermarket","labelBn":"সুপারমার্কেট","aliases":["super market"],"osmTags":["shop=supermarket"]},
+    {"id":"wholesale","labelEn":"Wholesale / distribution","labelBn":"পাইকারি ও বিতরণ","aliases":["wholesaler","distributor","cash and carry"],"osmTags":["shop=wholesale"]},
+    {"id":"clothing","labelEn":"Clothing / fashion","labelBn":"পোশাক ও ফ্যাশন","aliases":["fashion","garments","boutique","clothes"],"osmTags":["shop=clothes"]},
+    {"id":"footwear","labelEn":"Footwear","labelBn":"জুতা ও স্যান্ডেল","aliases":["shoes","shoe shop"],"osmTags":["shop=shoes"]},
+    {"id":"electronics","labelEn":"Electronics","labelBn":"ইলেকট্রনিকস","aliases":["electronic shop","consumer electronics"],"osmTags":["shop=electronics"]},
+    {"id":"mobile_computer","labelEn":"Mobile / computer","labelBn":"মোবাইল ও কম্পিউটার","aliases":["mobile shop","computer shop","phone accessories"],"osmTags":["shop=mobile_phone","shop=computer"]},
+    {"id":"hardware_building","labelEn":"Hardware / building materials","labelBn":"হার্ডওয়্যার ও নির্মাণসামগ্রী","aliases":["hardware","building supplies","sanitary and electrical"],"osmTags":["shop=hardware","shop=doityourself","shop=trade"]},
+    {"id":"stationery_books","labelEn":"Stationery / books","labelBn":"স্টেশনারি ও বই","aliases":["stationery","book shop","office supplies"],"osmTags":["shop=stationery","shop=books"]},
+    {"id":"pharmacy","labelEn":"Pharmacy","labelBn":"ফার্মেসি","aliases":["drug store","chemist"],"osmTags":["amenity=pharmacy"]},
+    {"id":"cosmetics_personal_care","labelEn":"Cosmetics / personal care","labelBn":"প্রসাধনী ও ব্যক্তিগত পরিচর্যা","aliases":["beauty products","cosmetics shop"],"osmTags":["shop=cosmetics","shop=perfumery"]},
+    {"id":"fruit_vegetable","labelEn":"Fruit / vegetable","labelBn":"ফল ও সবজি","aliases":["produce","greengrocer"],"osmTags":["shop=greengrocer"]},
+    {"id":"bakery_sweets","labelEn":"Bakery / sweets","labelBn":"বেকারি ও মিষ্টি","aliases":["bakery","confectionery","sweet shop"],"osmTags":["shop=bakery","shop=confectionery","shop=pastry"]},
+    {"id":"meat_fish","labelEn":"Meat / fish","labelBn":"মাংস ও মাছ","aliases":["butcher","fish shop","seafood"],"osmTags":["shop=butcher","shop=seafood"]},
+    {"id":"agriculture_feed","labelEn":"Agriculture / seeds / animal feed","labelBn":"কৃষি উপকরণ, বীজ ও পশুখাদ্য","aliases":["agro shop","seed shop","fertilizer shop","feed store"],"osmTags":["shop=agrarian","shop=country_store"]},
+    {"id":"household_furniture","labelEn":"Household / furniture","labelBn":"গৃহস্থালি ও আসবাবপত্র","aliases":["housewares","furniture shop"],"osmTags":["shop=houseware","shop=furniture"]},
+    {"id":"jewelry_accessories","labelEn":"Jewelry / accessories","labelBn":"গয়না ও অ্যাকসেসরিজ","aliases":["jewellery","jeweler"],"osmTags":["shop=jewelry","shop=fashion_accessories"]},
+    {"id":"automotive_parts","labelEn":"Automotive / motorcycle parts","labelBn":"গাড়ি ও মোটরসাইকেলের যন্ত্রাংশ","aliases":["auto parts","motor parts","tyre shop"],"osmTags":["shop=car_parts","shop=motorcycle","shop=tyres"]},
+    {"id":"pet_supplies","labelEn":"Pet supplies","labelBn":"পোষা প্রাণীর সামগ্রী","aliases":["pet food","animal supplies"],"osmTags":["shop=pet"]},
+    {"id":"other","labelEn":"Other / mixed business","labelBn":"অন্যান্য / মিশ্র ব্যবসা","aliases":["other","mixed","miscellaneous"],"osmTags":["shop=yes"]}
+  ]
+}
