@@ -69,7 +69,7 @@ See [Mobile UI specification](docs/design/mobile-ui-spec.md) for colors, interac
 
 ### Automated app screenshots
 
-A separate [UI Preview Screenshots workflow](.github/workflows/ui-preview.yml) runs after a successful **main-branch push build**. It installs that exact APK into a disposable emulator, creates demo records through the app UI, captures screens, and publishes them to the isolated `ui-previews` branch. It does not gate builds or publish releases.
+A separate [UI Preview Screenshots workflow](.github/workflows/ui-preview.yml) runs after a successful **main-branch APK build**. It installs that exact APK into a disposable emulator, creates demo records through the app UI, captures screens, and publishes them to the isolated `ui-previews` branch. It does not gate builds or publish releases.
 
 [Open the full screenshot gallery](https://github.com/MasfikurDev/vendora-android/tree/ui-previews)
 
