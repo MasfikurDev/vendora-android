@@ -70,7 +70,7 @@ jobs:
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Build and run unit tests
-        run: ./gradlew --no-daemon :app:checkDebugAarMetadata assembleDebug testDebugUnitTest
+        run: ./gradlew --no-daemon :app:checkDebugAarMetadata assembleDebug testDebugUnitTest compileDebugAndroidTestKotlin
 
       - name: Prepare build metadata and automatic testing notes
         shell: bash
@@ -89,7 +89,7 @@ jobs:
             echo "- **Branch:** ${GITHUB_REF_NAME}"
             echo "- **Commit:** ${GITHUB_SHA}"
             echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
-            echo "- **CI validation:** dependency metadata, debug APK build, and JVM unit tests passed."
+            echo "- **CI validation:** dependency metadata, debug APK build, JVM unit tests, and Android instrumentation-test source compilation passed."
             echo "- **APK:** app-debug.apk (debug/preview build; not production-signed)"
             echo
             echo "## Changes in this commit"
@@ -101,7 +101,7 @@ jobs:
             echo "## Phone testing checklist"
             echo "- Install the APK on a test device; do not use preview builds as the only record for real business data."
             echo "- Verify the feature named in the commit and check for regressions in shop switching, product persistence, and sales/stock updates where applicable."
-            echo "- CI success confirms build and unit tests only; it does not replace physical-device testing."
+            echo "- CI compiles instrumentation test sources but does not execute them; this workflow has no emulator job. Device/emulator testing is still required."
           } > RELEASE-NOTES.md
 
           {
@@ -115,7 +115,7 @@ jobs:
             echo "Minimum Android SDK: 26 (Android 8.0)"
             echo "Target Android SDK: 36"
             echo "Java: 17"
-            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest passed"
+            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest, compileDebugAndroidTestKotlin passed"
             echo "APK filename: app-debug.apk"
           } > BUILD-INFO.txt
 
