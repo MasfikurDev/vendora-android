@@ -100,3 +100,12 @@ This document is the status ledger for the repository. Update it when implementa
 3. Migrate the interim SharedPreferences/JSON persistence to Room with explicit, tested migrations before financially significant workflows.
 4. Continue with stock movements, purchases, sales, returns, expenses, reports, and backup/export.
 5. Keep signed production distribution separate from debug preview/beta releases.
+
+
+### 2026-10-28 — CI efficiency and reliability improvements proposed
+
+- Android CI now runs debug APK assembly, JVM unit tests, and Android Lint on pull requests targeting `main` and on `main` pushes.
+- Ordinary feature-branch pushes skip duplicate verification when a PR is the validation path. Feature previews remain available through manual workflow dispatch; a feature push marked `[phone-test]` requests a preview release.
+- Verification runs with read-only repository permissions. Preview publishing is isolated in a separate job with write permission.
+- Gradle and GitHub Actions minor/patch updates are grouped weekly through Dependabot; major updates remain separate for safer review.
+- This change is pending CI verification on its exact PR head SHA. Do not treat the workflow as validated until the run completes.
