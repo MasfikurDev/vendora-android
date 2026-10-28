@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: 'Publish this successful build as a GitHub prerelease'
+        description: 'Publish this successful signed build as a GitHub prerelease'
         required: true
         type: boolean
         default: false
@@ -42,10 +42,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Build, tests, and release notes
+  verify-and-sign:
+    name: Build, test, sign, and verify APK
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -69,39 +69,61 @@ jobs:
       - name: Install required Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build and run unit tests
-        run: ./gradlew --no-daemon :app:checkDebugAarMetadata assembleDebug testDebugUnitTest
+      - name: Decode signing keystore without logging secrets
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
+            echo "::error::Missing GitHub Actions secret ANDROID_KEYSTORE_BASE64"
+            exit 1
+          fi
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/vendora-release.jks"
+          test -s "$RUNNER_TEMP/vendora-release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/vendora-release.jks" >> "$GITHUB_ENV"
 
-      - name: Prepare build metadata and automatic testing notes
+      - name: Build signed release APK, run unit tests, and lint
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required GitHub Actions secret $name"
+              exit 1
+            fi
+          done
+          ./gradlew --no-daemon --build-cache :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
+
+      - name: Verify APK signature and prepare release notes
         shell: bash
         env:
           RELEASE_NAME: ${{ github.event.head_commit.message || github.event.pull_request.title || github.workflow }}
         run: |
           set -euo pipefail
-          APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          APK="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
           test -n "$APK"
-          sha256sum "$APK" | sed 's#app/build/outputs/apk/debug/##' > SHA256SUMS.txt
+          cp "$APK" app-release.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs app-release.apk
+          sha256sum app-release.apk > SHA256SUMS.txt
 
           {
-            echo "# Vendora build notes"
+            echo "# Vendora signed prerelease notes"
             echo
             echo "- **Purpose:** ${RELEASE_NAME%%$'\n'*}"
             echo "- **Branch:** ${GITHUB_REF_NAME}"
             echo "- **Commit:** ${GITHUB_SHA}"
             echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
-            echo "- **CI validation:** dependency metadata, debug APK build, and JVM unit tests passed."
-            echo "- **APK:** app-debug.apk (debug/preview build; not production-signed)"
-            echo
-            echo "## Changes in this commit"
-            git log -1 --pretty=format:'- %s%n' "$GITHUB_SHA"
-            echo
-            echo "## Files changed in this commit"
-            git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | sed 's/^/- /' || true
+            echo "- **CI validation:** signed release APK build, JVM unit tests, Android Lint, and APK signature verification passed."
+            echo "- **APK:** app-release.apk (signed prerelease; not a production release)"
             echo
             echo "## Phone testing checklist"
-            echo "- Install the APK on a test device; do not use preview builds as the only record for real business data."
-            echo "- Verify the feature named in the commit and check for regressions in shop switching, product persistence, and sales/stock updates where applicable."
-            echo "- CI success confirms build and unit tests only; it does not replace physical-device testing."
+            echo "- Install on a test phone and verify launch, shop switching, product persistence, and sales/stock updates."
+            echo "- Back up business data before testing."
+            echo "- CI success does not replace physical-device testing."
           } > RELEASE-NOTES.md
 
           {
@@ -109,39 +131,37 @@ jobs:
             echo "Version name: 0.1.0"
             echo "Version code: 1"
             echo "Branch: ${GITHUB_REF_NAME}"
-            echo "Build type: debug (unsigned preview)"
+            echo "Build type: release (signed prerelease)"
             echo "Commit: ${GITHUB_SHA}"
             echo "Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "Minimum Android SDK: 26 (Android 8.0)"
             echo "Target Android SDK: 36"
             echo "Java: 17"
-            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest passed"
-            echo "APK filename: app-debug.apk"
+            echo "Validation: assembleRelease, testDebugUnitTest, lintRelease, apksigner verify passed"
+            echo "APK filename: app-release.apk"
           } > BUILD-INFO.txt
 
-      - name: Upload APK and notes as workflow artifact
+      - name: Upload signed APK and notes as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vendora-build-${{ github.run_number }}-${{ github.run_attempt }}
+          name: vendora-signed-prerelease-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
-            app/build/outputs/apk/debug/*.apk
+            app-release.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
             RELEASE-NOTES.md
           if-no-files-found: error
           retention-days: 14
 
-      # Publish only when explicitly requested, or when a feature commit is marked [phone-test].
-      # Ordinary feature commits still receive CI + a downloadable workflow artifact, not a Release.
       - name: Publish requested feature preview
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main' || github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]')
+        if: (github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main') || (github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]'))
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-preview-${{ github.run_number }}
-          name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
+          name: Vendora Signed Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
           body_path: RELEASE-NOTES.md
           files: |
-            app/build/outputs/apk/debug/app-debug.apk
+            app-release.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
             RELEASE-NOTES.md
@@ -150,17 +170,15 @@ jobs:
           prerelease: true
           generate_release_notes: true
 
-      # Main beta Releases are not created on every push. Use workflow_dispatch with
-      # publish_release=true on main when the merged feature is ready for a beta build.
       - name: Publish requested main beta
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-beta-${{ github.run_number }}
-          name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
+          name: Vendora Signed Beta 0.1.0 — Build ${{ github.run_number }}
           body_path: RELEASE-NOTES.md
           files: |
-            app/build/outputs/apk/debug/app-debug.apk
+            app-release.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
             RELEASE-NOTES.md
