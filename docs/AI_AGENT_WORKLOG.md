@@ -84,3 +84,15 @@ This log currently records repository-specific lessons confirmed from Vendora's 
 - CI runs `40102203101` (push) and `40102207210` (pull request) were observed in progress for this exact SHA during the update. Do not report the new workflow as verified or claim a feature release exists until the run is complete and the Releases page confirms publication.
 - This supersedes the older sentence in this worklog that says feature-branch pushes and PR checks should never publish releases. PR checks themselves do not publish releases; the separate push event to a feature branch is what invokes the feature prerelease step.
 - Feature releases are debug previews, not signed production builds. Check the exact branch, SHA, run conclusion, and published tag before sharing a build.
+
+
+## CI efficiency and reliability update — 2026-10-28
+
+- Added Android Lint to the standard debug build and JVM unit-test verification command.
+- Reduced checkout depth to one commit; full Git history is not needed to compile/test or generate current-commit notes.
+- Moved Android SDK package declarations into the setup action and removed the separate SDK-manager install step.
+- Scoped default workflow permissions to read-only. The separate preview-release job receives contents write permission only when a release was explicitly requested or a feature push is marked `[phone-test]`.
+- Normal feature pushes skip duplicate verification work; pull requests targeting `main` are the standard feature-validation path. Main pushes still verify, and workflow dispatch can produce an on-demand build/preview.
+- Reduced workflow artifact retention from 14 to 7 days to limit stale build storage.
+- Added grouped weekly Dependabot updates for Gradle dependencies and GitHub Actions, separating major updates from grouped minor/patch updates.
+- **Verification boundary:** these configuration changes still require a completed CI run on the PR head. No claim is made that Android Lint, dependency updates, or release publishing passed until GitHub reports the exact run result.
