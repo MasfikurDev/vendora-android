@@ -69,8 +69,45 @@ jobs:
       - name: Install required Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
+      - name: Prepare persistent debug signing key
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+          DEBUG_KEYSTORE_PASSWORD: ${{ secrets.DEBUG_KEYSTORE_PASSWORD }}
+          DEBUG_KEY_ALIAS: ${{ secrets.DEBUG_KEY_ALIAS }}
+          DEBUG_KEY_PASSWORD: ${{ secrets.DEBUG_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in DEBUG_KEYSTORE_BASE64 DEBUG_KEYSTORE_PASSWORD DEBUG_KEY_ALIAS DEBUG_KEY_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Required Actions secret ${name} is missing or empty."
+              exit 1
+            fi
+          done
+
+          KEYSTORE_PATH="$RUNNER_TEMP/vendora-debug.jks"
+          printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          test -s "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+
+          {
+            echo "DEBUG_KEYSTORE_PATH=$KEYSTORE_PATH"
+            echo "DEBUG_KEYSTORE_PASSWORD=$DEBUG_KEYSTORE_PASSWORD"
+            echo "DEBUG_KEY_ALIAS=$DEBUG_KEY_ALIAS"
+            echo "DEBUG_KEY_PASSWORD=$DEBUG_KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
       - name: Build and run unit tests
         run: ./gradlew --no-daemon :app:checkDebugAarMetadata assembleDebug testDebugUnitTest
+
+      - name: Verify APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
 
       - name: Prepare build metadata and automatic testing notes
         shell: bash
@@ -78,9 +115,17 @@ jobs:
           RELEASE_NAME: ${{ github.event.head_commit.message || github.event.pull_request.title || github.workflow }}
         run: |
           set -euo pipefail
-          APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
-          test -n "$APK"
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
           sha256sum "$APK" | sed 's#app/build/outputs/apk/debug/##' > SHA256SUMS.txt
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            SIGNING_NOTE="PR validation APK; signed with the runner's temporary debug key and not intended for updating installed CI builds."
+            BUILD_TYPE="debug (PR-only temporary signing)"
+          else
+            SIGNING_NOTE="Persistent debug signing enabled; future CI debug builds using this key can update this installation."
+            BUILD_TYPE="debug (persistent Vendora debug key)"
+          fi
 
           {
             echo "# Vendora build notes"
@@ -89,8 +134,9 @@ jobs:
             echo "- **Branch:** ${GITHUB_REF_NAME}"
             echo "- **Commit:** ${GITHUB_SHA}"
             echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
-            echo "- **CI validation:** dependency metadata, debug APK build, and JVM unit tests passed."
-            echo "- **APK:** app-debug.apk (debug/preview build; not production-signed)"
+            echo "- **CI validation:** dependency metadata, debug APK build, APK signature verification, and JVM unit tests passed."
+            echo "- **APK:** app-debug.apk; $SIGNING_NOTE"
+            echo "- **Version code:** ${GITHUB_RUN_NUMBER}"
             echo
             echo "## Changes in this commit"
             git log -1 --pretty=format:'- %s%n' "$GITHUB_SHA"
@@ -107,15 +153,15 @@ jobs:
           {
             echo "Product: Vendora"
             echo "Version name: 0.1.0"
-            echo "Version code: 1"
+            echo "Version code: ${GITHUB_RUN_NUMBER}"
             echo "Branch: ${GITHUB_REF_NAME}"
-            echo "Build type: debug (unsigned preview)"
+            echo "Build type: $BUILD_TYPE"
             echo "Commit: ${GITHUB_SHA}"
             echo "Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "Minimum Android SDK: 26 (Android 8.0)"
             echo "Target Android SDK: 36"
             echo "Java: 17"
-            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest passed"
+            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest, apksigner verify passed"
             echo "APK filename: app-debug.apk"
           } > BUILD-INFO.txt
 
@@ -131,8 +177,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Publish only when explicitly requested, or when a feature commit is marked [phone-test].
-      # Ordinary feature commits still receive CI + a downloadable workflow artifact, not a Release.
       - name: Publish requested feature preview
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main' || github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]')
         uses: softprops/action-gh-release@v2
@@ -150,8 +194,6 @@ jobs:
           prerelease: true
           generate_release_notes: true
 
-      # Main beta Releases are not created on every push. Use workflow_dispatch with
-      # publish_release=true on main when the merged feature is ready for a beta build.
       - name: Publish requested main beta
         if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
@@ -168,3 +210,8 @@ jobs:
           draft: false
           prerelease: true
           generate_release_notes: true
+
+      - name: Remove temporary signing key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/vendora-debug.jks"
