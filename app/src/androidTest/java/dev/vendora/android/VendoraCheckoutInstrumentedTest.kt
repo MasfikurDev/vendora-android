@@ -161,7 +161,7 @@ class VendoraCheckoutInstrumentedTest {
                 quantity = 0,
                 purchasePricePoisha = 5000L,
                 sellingPricePoisha = 6000L,
-                brand = "Fresh Fields",
+                brand = "Sample Brand",
                 category = "Grocery",
                 unit = "kg",
                 barcode = "123456789",
@@ -172,7 +172,7 @@ class VendoraCheckoutInstrumentedTest {
         assertEquals("product-a", repository.getProductsByBarcode("shop-a", "123456789").single().id)
         repository.deleteProduct("shop-a", "product-a")
 
-        assertEquals(listOf("Fresh Fields"), repository.getCatalogOptions("shop-a", CatalogOptionKind.BRAND))
+        assertEquals(listOf("Sample Brand"), repository.getCatalogOptions("shop-a", CatalogOptionKind.BRAND))
         assertEquals(listOf("Grocery"), repository.getCatalogOptions("shop-a", CatalogOptionKind.CATEGORY))
         assertEquals(listOf("kg"), repository.getCatalogOptions("shop-a", CatalogOptionKind.UNIT))
     }
