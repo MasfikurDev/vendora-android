@@ -28,7 +28,7 @@ This is a durable handoff for coding agents. It records repository-specific pitf
 
 Current workflow: `.github/workflows/android.yml`.
 
-- Relevant pushes to `main` and pull requests targeting `main` run CI. Feature branches are built using manual workflow dispatch; feature pushes do not automatically run this workflow.
+- Relevant pushes to `main` and pull requests targeting `main` run CI. Feature branches are built using manual workflow dispatch; feature pushes do not automatically run this workflow. Emulator-backed instrumentation tests are opt-in via `run_instrumentation` (default `false`) and must not run on routine pushes/PRs.
 - Leave `publish_release` unchecked for a workflow artifact only. Check it only when a GitHub prerelease is explicitly wanted.
 - Same-repository builds use the persistent debug keystore secrets. Fork PRs must not receive repository secrets and use temporary signing; those APKs cannot update persistent-key installs.
 - A valid APK signature alone does not prove update compatibility. Compare the APK's SHA-256 certificate fingerprint against the configured persistent keystore, and confirm the application ID and version code.
@@ -38,7 +38,7 @@ Current workflow: `.github/workflows/android.yml`.
 ## Testing guidance
 
 - Add JVM unit tests for pure business rules and validation.
-- Add Room-backed instrumentation tests for transaction behavior, persistence, and shop isolation.
+- Add Room-backed instrumentation tests for transaction behavior, persistence, and shop isolation. Keep emulator execution opt-in unless the user explicitly chooses to pay the routine CI time cost.
 - Critical checkout regressions include successful sale, insufficient stock, rollback/no partial writes, price snapshots, totals, and cross-shop access rejection.
 - Migration tests should cover empty storage, valid historical JSON, malformed records, duplicate/colliding IDs, partial import retry, and marker-write failure where practical.
 - Do not claim instrumentation tests are CI-covered unless an emulator/device job is configured and the exact run passes.
