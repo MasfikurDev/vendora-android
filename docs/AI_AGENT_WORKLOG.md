@@ -87,3 +87,16 @@ Older worklog entries claimed automatic feature-branch push prereleases and desc
 - Do not start an emulator on routine pushes or pull requests. Dispatch the workflow with `run_instrumentation=true` when actual Room/Android runtime validation is needed.
 - Use shallow checkout and Gradle build caching; keep workflow artifacts for a short, useful period. Do not add expensive checks to the default path without a clear risk-reduction benefit.
 - A skipped instrumentation step is an intentional time-saving choice, not a passed instrumentation test. Report it explicitly.
+
+
+## Historical CI run audit — 2026-10-28
+
+Inspected the previously reported CI runs and recorded the verified failing stages:
+
+- [#40311983219](https://github.com/MasfikurDev/vendora-android/actions/runs/40311983219) and [#40314397197](https://github.com/MasfikurDev/vendora-android/actions/runs/40314397197): older build + JVM-test jobs passed and published feature previews under the then-current workflow. This release trigger is no longer the current policy.
+- [#40250634201](https://github.com/MasfikurDev/vendora-android/actions/runs/40250634201): APK build succeeded; JVM test compilation failed with `ProductStoreTest.kt:194:64 Unresolved reference 'single'`. Fix test imports/extension usage when that source is active; do not treat this as an APK packaging failure.
+- [#40316840056](https://github.com/MasfikurDev/vendora-android/actions/runs/40316840056) and [#40316824097](https://github.com/MasfikurDev/vendora-android/actions/runs/40316824097): dependency metadata validation failed to resolve the branch's `androidx.lifecycle:runtime-ktx` dependency (versions 2.9.4 and 2.8.7, respectively), so build/test/release steps did not run.
+- [#40317257417](https://github.com/MasfikurDev/vendora-android/actions/runs/40317257417): the same unresolved `runtime-ktx:2.8.7` dependency blocked the build; later steps were skipped. The failing step was dependency metadata validation, not the Room checkout instrumentation.
+- Current main instead declares `androidx.lifecycle:lifecycle-runtime:2.9.4`; [#40674001494](https://github.com/MasfikurDev/vendora-android/actions/runs/40674001494) passed on the merged workflow commit and also compiled Android instrumentation-test sources without an emulator.
+
+These historical failures came from older refs and do not prove the current code has the same defect. When diagnosing a run, capture the exact SHA, failing Gradle task, and first actionable error. Do not infer root cause from skipped downstream steps, and do not use emulator startup to solve dependency-resolution or JVM test compilation failures.
