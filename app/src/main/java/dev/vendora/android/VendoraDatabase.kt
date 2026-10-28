@@ -113,6 +113,9 @@ interface VendoraDao {
     @Query("SELECT * FROM products WHERE id = :productId AND shopId = :shopId LIMIT 1")
     suspend fun getProduct(shopId: String, productId: String): ProductEntity?
 
+    @Query("SELECT * FROM products WHERE shopId = :shopId AND barcode = :barcode AND barcode != '' ORDER BY name COLLATE NOCASE")
+    suspend fun getProductsByBarcode(shopId: String, barcode: String): List<ProductEntity>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertProduct(product: ProductEntity)
 
