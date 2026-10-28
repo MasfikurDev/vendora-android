@@ -81,8 +81,23 @@ def type_text(value):
 
 
 def fill_field(label, value):
-    tap_text(label)
-    type_text(value)
+    # Dialog fields may be below the fold on a phone-sized emulator.
+    for attempt in range(4):
+        try:
+            tap_text(label, timeout=2)
+            type_text(value)
+            return
+        except RuntimeError:
+            if attempt == 3:
+                raise
+            adb("shell", "input", "swipe", 540, 1100, 540, 480, 350)
+            time.sleep(0.4)
+
+
+def hide_keyboard():
+    # The back key dismisses the IME first when it is open.
+    adb("shell", "input", "keyevent", "4", check=False)
+    time.sleep(0.3)
 
 
 def screenshot(path):
@@ -103,6 +118,7 @@ def add_product(name, sku, quantity, purchase, selling):
     fill_field("Stock quantity", quantity)
     fill_field("Purchase price", purchase)
     fill_field("Selling price", selling)
+    hide_keyboard()
     tap_text("Save product", timeout=10)
     find_node(name, timeout=15)
     time.sleep(0.8)
@@ -125,6 +141,7 @@ def main():
     adb("shell", "am", "start", "-n", f"{PACKAGE}/{ACTIVITY}")
     find_node("Create shop", timeout=35)
     fill_field("Shop name", "Vendora Demo Mart")
+    hide_keyboard()
     tap_text("Create shop", timeout=10)
     find_node("Overview", timeout=30)
     time.sleep(2)
