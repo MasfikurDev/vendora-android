@@ -420,7 +420,7 @@ private fun InventoryContent(
     onEdit: (Product) -> Unit,
     onDelete: (Product) -> Unit,
 ) {
-    val filteredProducts = products.filter { it.name.contains(query, true) || it.sku.contains(query, true) }
+    val filteredProducts = products.filter { product -> listOf(product.name, product.sku, product.brand, product.category, product.barcode).any { it.contains(query, true) } }
     Column(modifier.padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -462,10 +462,10 @@ private fun InventoryContent(
                                     if (product.barcode.isNotBlank()) Text("Barcode: ${product.barcode}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Surface(
-                                    color = if (product.quantity <= 5) DashboardAmber else DashboardMint,
+                                    color = if (product.quantity <= product.lowStockThreshold) DashboardAmber else DashboardMint,
                                     shape = RoundedCornerShape(10.dp),
                                 ) {
-                                    Text("${product.quantity} in stock", modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                    Text("${product.quantity} ${product.unit}", modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                             Spacer(Modifier.height(12.dp))
