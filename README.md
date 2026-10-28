@@ -67,6 +67,22 @@ The native Android implementation uses Jetpack Compose and Material 3; Figma is 
 
 See [Mobile UI specification](docs/design/mobile-ui-spec.md) for colors, interaction rules, and implementation boundaries.
 
+### Automated app screenshots
+
+A separate [UI Preview Screenshots workflow](.github/workflows/ui-preview.yml) runs after a successful **main-branch push build**. It installs that exact APK into a disposable emulator, creates demo records through the app UI, captures screens, and publishes them to the isolated `ui-previews` branch. It does not gate builds or publish releases.
+
+[Open the full screenshot gallery](https://MasfikurDev.github.io/vendora-android/)
+
+| Home / Overview | Products / Inventory |
+|---|---|
+| ![Vendora Home preview](https://raw.githubusercontent.com/MasfikurDev/vendora-android/ui-previews/screenshots/home.png) | ![Vendora Products preview](https://raw.githubusercontent.com/MasfikurDev/vendora-android/ui-previews/screenshots/products.png) |
+
+| Sell / Checkout | Insights |
+|---|---|
+| ![Vendora Selling preview](https://raw.githubusercontent.com/MasfikurDev/vendora-android/ui-previews/screenshots/selling.png) | ![Vendora Insights preview](https://raw.githubusercontent.com/MasfikurDev/vendora-android/ui-previews/screenshots/insights.png) |
+
+Screenshots are generated from disposable demo data, not real shops or customer records. The preview workflow is intentionally separate and is not part of the Android build's required checks. The image links become available after its first successful run.
+
 ## Current implementation
 
 The following capabilities have foundations in the current source. They should not be interpreted as complete production features.
