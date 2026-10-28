@@ -37,7 +37,7 @@ class ProductStore(context: Context) {
                             sku = item.getString("sku"),
                             quantity = item.getInt("quantity"),
                             purchasePricePoisha = item.getLong("purchasePricePoisha"),
-                                    sellingPricePoisha = item.getLong("sellingPricePoisha"),
+                            sellingPricePoisha = item.getLong("sellingPricePoisha"),
                             brand = item.optString("brand"),
                             category = item.optString("category"),
                             unit = item.optString("unit", "pcs"),
@@ -54,6 +54,7 @@ class ProductStore(context: Context) {
         require(product.shopId.isNotBlank()) { "A shop is required." }
         require(product.name.isNotBlank()) { "Product name is required." }
         require(product.quantity >= 0) { "Stock cannot be negative." }
+        require(product.lowStockThreshold >= 0) { "Low-stock threshold cannot be negative." }
         require(product.purchasePricePoisha >= 0 && product.sellingPricePoisha >= 0) {
             "Prices cannot be negative."
         }
