@@ -10,7 +10,7 @@
 - **Multiple shops, one owner:** keep products and business data scoped to the selected shop.
 - **Inventory that can be audited:** stock changes should have a reason and a movement record.
 - **Safer selling:** checkout should commit sale records and stock deductions atomically.
-- **Reusable product details:** brands, categories, and units should be easy to reuse without retyping.
+- **Reusable product details:** brands, categories, and units should be easy to reuse without retyping, with offline starter suggestions for selected shop types.
 - **Bangladesh-aware, not compliance-claiming:** BDT values use integer poisha internally; the bundled shop-type catalog includes Bengali labels. The app does not verify licenses, VAT/TIN status, or regulated-business permissions.
 - **AI-ready by design:** future AI features are optional and must not become the source of truth for money, stock, or permissions.
 

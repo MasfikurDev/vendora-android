@@ -25,6 +25,7 @@ This document is the status ledger for the repository. Update it when implementa
 | [#31](https://github.com/MasfikurDev/vendora-android/pull/31) | `feat/shop-type-taxonomy-open-data` | Offline shop-type catalog, Bengali labels, source/provenance guidance | Open; based on #30 |
 | [#32](https://github.com/MasfikurDev/vendora-android/pull/32) | `docs/licensing-and-third-party-notices` | Apache-2.0 source license, third-party notices, project documentation and community guidance | Open; stacked on #31 |
 | [#33](https://github.com/MasfikurDev/vendora-android/pull/33) | `feat/sales-history-activity` | Group checkout lines into sale transactions, add v2→v3 migration, and show shop-scoped sales activity | Open; based on #32; verify CI against the latest head SHA before merging |
+| Next PR | `feat/home-appliance-catalog` | Add Electronics & home appliances shop type and offline starter brand/category suggestions using the Moshiur Electronics reference | Branch created from PR #33; PR to follow CI |
 
 Do not assume these PR changes are available on `main` until the relevant PRs are merged. Preserve dependency order: #30 → #31 → #32. Recheck each PR's current base, head SHA, required checks, and mergeability before merging or retargeting.
 
@@ -35,7 +36,8 @@ Do not assume these PR changes are available on `main` until the relevant PRs ar
 - Product metadata fields including brand, category, unit, barcode text, and configurable low-stock threshold.
 - Reusable brand/category/unit options scoped by shop.
 - Multi-item cart and checkout foundations designed to commit sale headers, sale-line snapshots, stock deductions, and movement records transactionally.
-- Sales Activity screen with per-shop sale totals, timestamps, item counts, and expandable line details on the next feature branch.
+- Sales Activity screen with per-shop sale totals, timestamps, item counts, and expandable line details on the sales-history feature branch.
+- Offline home-appliance starter brand/category suggestions for the Moshiur Electronics reference; no inventory or pricing is seeded.
 - Bundled shop-type catalog with stable internal IDs, English/Bengali labels, aliases, and OSM reference tags.
 - Instrumentation test source for checkout integrity, shop isolation, reusable options, and catalog invariants.
 
