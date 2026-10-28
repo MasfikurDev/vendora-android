@@ -121,3 +121,13 @@ This log currently records repository-specific lessons confirmed from Vendora's 
 - Rewrote the current status snapshot to distinguish `main` from open stacked PRs #30 → #31 → #32. Historical contradictory entries remain under dated transition history for traceability.
 - Source basis: GitHub's repository best-practice and healthy-contribution guidance recommends a clear README, license, contribution guide, code of conduct, and security/community entry points. See https://docs.github.com/en/repositories/creating-and-managing-repositories/best-practices-for-repositories and https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions.
 - No build or tests were run for this documentation-only change. Validate Markdown links and YAML templates, then inspect CI for the exact PR head.
+
+
+## Documentation maintenance rules — 2026-10-28
+
+- The root README is the short project entry point; keep implementation status branch-aware and link to detailed docs instead of duplicating long architecture notes.
+- `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`, and `CODE_OF_CONDUCT.md` are separate user/community interfaces. Do not imply private reporting, response SLAs, support contracts, or enforcement capacity beyond what is actually configured.
+- Update `CHANGELOG.md` for meaningful user-facing changes; unreleased entries must not be presented as published release notes.
+- For third-party data/code/assets, capture exact source and applicable license/attribution requirements in `THIRD_PARTY_NOTICES.md`; the source guide explains data quality and catalog governance.
+- The docs index is `docs/README.md`. Keep links current and distinguish shipped behavior from future integrations.
+- The current documentation/license change is on PR #32, stacked after #31 and #30. Merge dependency order only after reviewing the exact current head checks.
