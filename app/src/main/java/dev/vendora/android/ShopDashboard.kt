@@ -259,7 +259,7 @@ private fun SellingContent(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(product.name, fontWeight = FontWeight.SemiBold)
-                                    Text("\${formatBdt(product.sellingPricePoisha)} each · \${product.quantity} available",
+                                    Text("${formatBdt(product.sellingPricePoisha)} each · ${product.quantity} available",
                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -269,7 +269,7 @@ private fun SellingContent(
                                 }
                             }
                             if (quantity > 0) {
-                                Text("Line total: \${formatBdt(product.sellingPricePoisha * quantity.toLong())}", color = DashboardGreen, style = MaterialTheme.typography.labelLarge)
+                                Text("Line total: ${formatBdt(product.sellingPricePoisha * quantity.toLong())}", color = DashboardGreen, style = MaterialTheme.typography.labelLarge)
                             }
                         }
                     }
@@ -283,7 +283,7 @@ private fun SellingContent(
             Column(Modifier.weight(1f)) {
                 Text("Cart total", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(formatBdt(total), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("\${selected.size} product line(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("${selected.size} product line(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Button(onClick = onCheckout, enabled = selected.isNotEmpty() && !busy, shape = RoundedCornerShape(14.dp)) {
                 if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
