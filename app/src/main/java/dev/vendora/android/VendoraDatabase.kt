@@ -95,7 +95,7 @@ data class SaleEntity(
 )
 data class SaleLineEntity(
     @PrimaryKey val id: String,
-    val saleId: String,
+    @ColumnInfo(defaultValue = "''") val saleId: String,
     val shopId: String,
     val productId: String,
     val productName: String,
