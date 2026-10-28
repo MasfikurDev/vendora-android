@@ -115,6 +115,7 @@ class VendoraCheckoutInstrumentedTest {
             ),
         )
 
+        assertEquals("product-a", repository.getProductsByBarcode("shop-a", "123456789").single().id)
         repository.deleteProduct("shop-a", "product-a")
 
         assertEquals(listOf("Fresh Fields"), repository.getCatalogOptions("shop-a", CatalogOptionKind.BRAND))
