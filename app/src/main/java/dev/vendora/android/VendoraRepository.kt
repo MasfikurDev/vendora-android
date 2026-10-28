@@ -198,6 +198,12 @@ class VendoraRepository(
         return dao.getProduct(shopId, productId)
     }
 
+    suspend fun getProductsByBarcode(shopId: String, barcode: String): List<ProductEntity> {
+        require(shopId.isNotBlank()) { "A shop is required." }
+        require(barcode.isNotBlank()) { "A barcode is required." }
+        return dao.getProductsByBarcode(shopId, barcode.trim())
+    }
+
     suspend fun saveProduct(product: ProductEntity, timestampMillis: Long = System.currentTimeMillis()) {
         require(product.shopId.isNotBlank() && product.name.isNotBlank()) { "A shop and product name are required." }
         require(product.quantity >= 0) { "Stock cannot be negative." }
