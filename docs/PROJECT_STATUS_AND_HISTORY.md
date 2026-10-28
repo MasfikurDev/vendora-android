@@ -15,7 +15,7 @@ This file records the latest known implementation and keeps historical transitio
 - Legacy SharedPreferences/JSON importer that validates records, imports in a database transaction, and preserves original preferences.
 - Repository operations for shop/product persistence, product stock movements, and shop-scoped reads.
 - Checkout runs in a Room transaction, validates cart stock before writing, snapshots selling price and cost, records sale lines, deducts stock, and appends stock movements.
-- GitHub Actions builds a debug APK, runs JVM unit tests, verifies the APK signature, and uploads a workflow artifact.
+- GitHub Actions builds a debug APK, runs JVM unit tests, verifies the APK signature, and uploads a workflow artifact. Emulator instrumentation is opt-in on manual workflow dispatch and disabled by default.
 - Persistent debug signing is configured through GitHub Actions secrets. This branch adds certificate fingerprint comparison and critical-flow instrumentation tests; the new run must finish before these changes are considered CI-verified.
 
 ### Known limitations / risks
@@ -55,7 +55,7 @@ The current workflow is `.github/workflows/android.yml`.
 
 - Previous signing workflow changes allowed same-repository PRs to use the persistent debug keystore while keeping fork PRs secret-safe.
 - Added explicit APK signing-certificate fingerprint verification against the configured persistent keystore.
-- Added Android instrumentation regression coverage for atomic checkout, insufficient-stock rollback, and shop-scoped product/SKU validation; CI provisions an emulator to run it.
+- Added Android instrumentation regression coverage for atomic checkout, insufficient-stock rollback, and shop-scoped product/SKU validation. After recognizing the runtime cost, emulator execution was changed to an opt-in manual-dispatch input (`run_instrumentation`, default `false`) rather than part of routine CI.
 - Corrected README and status text to describe the current Room implementation and manual feature-branch build trigger instead of the old SharedPreferences-only architecture and automatic feature-push release claims.
 - Verification status: pending the new workflow run on this change and a physical-device update test. Do not infer success from source changes alone.
 
@@ -65,7 +65,7 @@ Earlier snapshots described SharedPreferences/JSON as the current storage and Ro
 
 ## Recommended follow-up after this change
 
-1. Inspect the exact CI run for this branch and resolve any compile, test, emulator, or signing failures.
+1. Inspect the exact CI run for this branch and resolve any compile, JVM-test, or signing failures; run emulator instrumentation only when explicitly requested.
 2. Install its persistent-key APK over the current app if the signing fingerprint matches; if Android still rejects it, capture the exact Package Installer error and compare installed/new APK metadata.
 3. Add explicit schema migrations and migration tests before changing Room entities or database version.
 4. Design product archival, sale receipt grouping, and persistence-level SKU/ownership constraints with a tested migration plan.
