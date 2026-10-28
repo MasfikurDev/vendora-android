@@ -1,17 +1,32 @@
-## Change summary
+## Summary
 
-<!-- Describe what changed and why. -->
+<!-- What problem does this change solve? What behavior changes for users or maintainers? -->
 
-## Verification checklist
+## Scope and dependencies
 
-- [ ] Confirm new or changed dependency coordinates and versions exist in the official repository.
-- [ ] Keep dependency versions centralized in `gradle/libs.versions.toml` where practical.
-- [ ] Run the Android dependency metadata check and debug build.
-- [ ] Run unit tests and review the complete GitHub Actions result.
-- [ ] Do not merge while required checks are pending or failing.
-- [ ] If persistence/schema changes are included, consider existing user data, migrations, and rollback behavior.
-- [ ] If UI changes are included, confirm the intended screen is actually wired into the app entry point.
+- Related issue:
+- Depends on PR(s):
+- User-visible or data-impacting changes:
 
-## Testing notes
+## Verification
 
-<!-- List commands/checks run and any remaining limitations. -->
+- [ ] Relevant unit tests run
+- [ ] Debug build run
+- [ ] Database migration/runtime behavior verified where applicable
+- [ ] Instrumentation tests executed on a device/emulator where required, or limitation stated below
+- [ ] Exact PR head CI run reviewed; no older SHA is used as evidence
+
+**Checks actually run and results:**
+
+<!-- Commands, run URLs, commit SHA, and limitations. Do not say "tested" without naming what ran. -->
+
+## Data, security, and licensing
+
+- [ ] No secrets, private data, or generated build artifacts included
+- [ ] Third-party code/data/assets and licenses reviewed where applicable
+- [ ] Attribution, privacy, backup, and data migration impacts documented where applicable
+- [ ] Documentation and project status updated
+
+## Reviewer notes
+
+<!-- Trade-offs, risks, follow-up work, screenshots for UI changes, and known gaps. -->
