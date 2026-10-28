@@ -39,8 +39,18 @@ private enum class ShopSection(val label: String) {
 fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var products by remember(shop.id) { mutableStateOf(emptyList<Product>()) }
-    LaunchedEffect(shop.id) {
+    var brandOptions by remember(shop.id) { mutableStateOf(emptyList<String>()) }
+    var categoryOptions by remember(shop.id) { mutableStateOf(emptyList<String>()) }
+    var unitOptions by remember(shop.id) { mutableStateOf(listOf("pcs", "kg", "g", "litre", "ml", "box", "pack", "dozen", "meter")) }
+    suspend fun refreshProductData() {
         products = repository.getProducts(shop.id).map { it.toProduct() }
+        brandOptions = repository.getCatalogOptions(shop.id, CatalogOptionKind.BRAND)
+        categoryOptions = repository.getCatalogOptions(shop.id, CatalogOptionKind.CATEGORY)
+        unitOptions = (listOf("pcs", "kg", "g", "litre", "ml", "box", "pack", "dozen", "meter") +
+            repository.getCatalogOptions(shop.id, CatalogOptionKind.UNIT)).distinctBy { it.lowercase() }
+    }
+    LaunchedEffect(shop.id) {
+        refreshProductData()
     }
     var section by remember { mutableStateOf(ShopSection.Overview) }
     var query by remember { mutableStateOf("") }
@@ -53,7 +63,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
     var checkoutError by remember { mutableStateOf<String?>(null) }
     var checkoutSuccess by remember { mutableStateOf<String?>(null) }
 
-    val lowStock = products.filter { it.quantity <= 5 }
+    val lowStock = products.filter { it.quantity <= it.lowStockThreshold }
     val units = products.sumOf { it.quantity }
     val stockCost = products.sumOf { it.quantity.toLong() * it.purchasePricePoisha }
     val potentialSales = products.sumOf { it.quantity.toLong() * it.sellingPricePoisha }
@@ -202,8 +212,11 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
         ProductEditorDialog(
             initial = editing,
             error = error,
+            brandOptions = brandOptions,
+            categoryOptions = categoryOptions,
+            unitOptions = unitOptions,
             onDismiss = { showEditor = false },
-            onSave = { name, sku, quantity, purchase, selling ->
+            onSave = { name, sku, brand, category, unit, barcode, quantity, purchase, selling, lowStockThreshold ->
                 scope.launch {
                     runCatching {
                         val product = Product(
@@ -214,9 +227,14 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                             quantity = quantity,
                             purchasePricePoisha = purchase,
                             sellingPricePoisha = selling,
+                            brand = brand,
+                            category = category,
+                            unit = unit,
+                            barcode = barcode,
+                            lowStockThreshold = lowStockThreshold,
                         )
                         repository.saveProduct(product.toEntity())
-                        products = repository.getProducts(shop.id).map { it.toProduct() }
+                        refreshProductData()
                         showEditor = false
                     }.onFailure { error = it.message ?: "Could not save product." }
                 }
@@ -438,7 +456,10 @@ private fun InventoryContent(
                                 }
                                 Column(Modifier.weight(1f)) {
                                     Text(product.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                    val productDetails = listOf(product.brand, product.category).filter { it.isNotBlank() }.joinToString(" · ")
+                                    if (productDetails.isNotBlank()) Text(productDetails, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     if (product.sku.isNotBlank()) Text("SKU: ${product.sku}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    if (product.barcode.isNotBlank()) Text("Barcode: ${product.barcode}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Surface(
                                     color = if (product.quantity <= 5) DashboardAmber else DashboardMint,
@@ -497,8 +518,8 @@ private fun InsightsContent(
         Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = if (lowStock.isNotEmpty()) DashboardAmber else DashboardMint)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Restock watch", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("${lowStock.size} product(s) currently have 5 or fewer units.")
-                lowStock.take(5).forEach { Text("• ${it.name}: ${it.quantity} left", style = MaterialTheme.typography.bodyMedium) }
+                Text("${lowStock.size} product(s) are at or below their saved restock threshold.")
+                lowStock.take(5).forEach { Text("• ${it.name}: ${it.quantity} left (alert at ${it.lowStockThreshold})", style = MaterialTheme.typography.bodyMedium) }
             }
         }
     }
@@ -533,15 +554,24 @@ private fun EmptyInventoryCard(onAddProduct: () -> Unit) {
 private fun ProductEditorDialog(
     initial: Product?,
     error: String?,
+    brandOptions: List<String>,
+    categoryOptions: List<String>,
+    unitOptions: List<String>,
     onDismiss: () -> Unit,
-    onSave: (String, String, Int, Long, Long) -> Unit,
+    onSave: (String, String, String, String, String, String, Int, Long, Long, Int) -> Unit,
 ) {
     var name by remember(initial?.id) { mutableStateOf(initial?.name.orEmpty()) }
     var sku by remember(initial?.id) { mutableStateOf(initial?.sku.orEmpty()) }
+    var brand by remember(initial?.id) { mutableStateOf(initial?.brand.orEmpty()) }
+    var category by remember(initial?.id) { mutableStateOf(initial?.category.orEmpty()) }
+    var unit by remember(initial?.id) { mutableStateOf(initial?.unit?.ifBlank { "pcs" } ?: "pcs") }
+    var barcode by remember(initial?.id) { mutableStateOf(initial?.barcode.orEmpty()) }
     var quantity by remember(initial?.id) { mutableStateOf(initial?.quantity?.toString() ?: "0") }
     var purchase by remember(initial?.id) { mutableStateOf(initial?.purchasePricePoisha?.let { (it / 100.0).toString() } ?: "") }
     var selling by remember(initial?.id) { mutableStateOf(initial?.sellingPricePoisha?.let { (it / 100.0).toString() } ?: "") }
+    var lowStockThreshold by remember(initial?.id) { mutableStateOf(initial?.lowStockThreshold?.toString() ?: "5") }
     val valid = name.isNotBlank() && (quantity.toIntOrNull() ?: -1) >= 0 &&
+        (lowStockThreshold.toIntOrNull() ?: -1) >= 0 &&
         parsePoisha(purchase) != null && parsePoisha(selling) != null
 
     AlertDialog(
@@ -549,12 +579,17 @@ private fun ProductEditorDialog(
         title = { Text(if (initial == null) "Add product" else "Edit product", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                Modifier.heightIn(max = 560.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Product name *") }, singleLine = true)
+                SavedOptionField("Brand", brand, { brand = it }, brandOptions)
+                SavedOptionField("Category", category, { category = it }, categoryOptions)
+                SavedOptionField("Unit", unit, { unit = it }, unitOptions)
                 OutlinedTextField(sku, { sku = it }, modifier = Modifier.fillMaxWidth(), label = { Text("SKU (optional)") }, singleLine = true)
+                OutlinedTextField(barcode, { barcode = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Barcode (optional)") }, singleLine = true)
                 OutlinedTextField(quantity, { quantity = it.filter(Char::isDigit) }, modifier = Modifier.fillMaxWidth(), label = { Text("Stock quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(lowStockThreshold, { lowStockThreshold = it.filter(Char::isDigit) }, modifier = Modifier.fillMaxWidth(), label = { Text("Low-stock alert at") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
                 OutlinedTextField(purchase, { purchase = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Purchase price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 OutlinedTextField(selling, { selling = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Selling price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -563,12 +598,53 @@ private fun ProductEditorDialog(
         confirmButton = {
             Button(
                 enabled = valid,
-                onClick = { onSave(name.trim(), sku.trim(), quantity.toInt(), parsePoisha(purchase)!!, parsePoisha(selling)!!) },
+                onClick = {
+                    onSave(
+                        name.trim(), sku.trim(), brand.trim(), category.trim(), unit.trim().ifBlank { "pcs" },
+                        barcode.trim(), quantity.toInt(), parsePoisha(purchase)!!, parsePoisha(selling)!!,
+                        lowStockThreshold.toInt(),
+                    )
+                },
             ) { Text("Save product") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         shape = RoundedCornerShape(24.dp),
     )
+}
+
+@Composable
+private fun SavedOptionField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    savedOptions: List<String>,
+) {
+    var expanded by remember(label) { mutableStateOf(false) }
+    Column {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("$label (optional)") },
+            singleLine = true,
+        )
+        if (savedOptions.isNotEmpty()) {
+            Box {
+                TextButton(onClick = { expanded = true }) { Text("Use saved $label") }
+                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    savedOptions.take(20).forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                onValueChange(option)
+                                expanded = false
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 private fun parsePoisha(value: String): Long? {
