@@ -31,6 +31,18 @@ class VendoraCheckoutInstrumentedTest {
     }
 
     @Test
+    fun bundledShopTypeCatalogHasUniqueStableIdsAndFallbackOption() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val options = ShopTypeCatalog.load(context)
+
+        assertEquals(true, options.size >= 15)
+        assertEquals(options.size, options.map { it.id }.distinct().size)
+        assertEquals(options.size, options.map { it.labelEn }.distinct().size)
+        assertEquals(true, options.any { it.id == "other" && it.labelEn == "Other / mixed business" })
+        assertEquals(true, options.all { it.labelBn.isNotBlank() })
+    }
+
+    @Test
     fun successfulCheckoutRecordsSaleAndDeductsStockAtomically() = runBlocking {
         seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 5)
 
