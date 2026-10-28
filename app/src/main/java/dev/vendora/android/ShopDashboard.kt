@@ -138,6 +138,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                 busy = checkoutBusy,
                 error = checkoutError,
                 success = checkoutSuccess,
+                onAddProduct = { section = ShopSection.Products; editing = null; error = null; showEditor = true },
                 onQuantityChange = { product, quantity ->
                     cartQuantities = if (quantity <= 0) cartQuantities - product.id else cartQuantities + (product.id to quantity)
                     checkoutError = null
@@ -187,6 +188,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                         runCatching {
                             repository.deleteProduct(shop.id, product.id)
                             products = repository.getProducts(shop.id).map { it.toProduct() }
+                            cartQuantities = cartQuantities - product.id
                             productPendingDelete = null
                         }.onFailure { error = it.message ?: "Could not delete product." }
                     }
@@ -231,6 +233,7 @@ private fun SellingContent(
     busy: Boolean,
     error: String?,
     success: String?,
+    onAddProduct: () -> Unit,
     onQuantityChange: (Product, Int) -> Unit,
     onCheckout: () -> Unit,
 ) {
@@ -242,7 +245,7 @@ private fun SellingContent(
         Text("Choose quantities. Stock is deducted only after checkout succeeds.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(12.dp))
         if (products.isEmpty()) {
-            EmptyInventoryCard(onAddProduct = {})
+            EmptyInventoryCard(onAddProduct = onAddProduct)
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
