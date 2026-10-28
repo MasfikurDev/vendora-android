@@ -24,7 +24,7 @@ data class ShopEntity(
 
 @Entity(
     tableName = "products",
-    indices = [Index(value = ["shopId"]), Index(value = ["shopId", "sku"])],
+    indices = [Index(value = ["shopId"]), Index(value = ["shopId", "sku"]), Index(value = ["shopId", "barcode"])],
 )
 data class ProductEntity(
     @PrimaryKey val id: String,
@@ -34,6 +34,23 @@ data class ProductEntity(
     val quantity: Int,
     val purchasePricePoisha: Long,
     val sellingPricePoisha: Long,
+    val brand: String = "",
+    val category: String = "",
+    val unit: String = "pcs",
+    val barcode: String = "",
+    val lowStockThreshold: Int = 5,
+)
+
+@Entity(
+    tableName = "catalog_options",
+    indices = [Index(value = ["shopId", "kind", "normalizedValue"], unique = true)],
+)
+data class CatalogOptionEntity(
+    @PrimaryKey val id: String,
+    val shopId: String,
+    val kind: String,
+    val value: String,
+    val normalizedValue: String,
 )
 
 @Entity(
@@ -107,6 +124,12 @@ interface VendoraDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun importProducts(products: List<ProductEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCatalogOptions(options: List<CatalogOptionEntity>)
+
+    @Query("SELECT * FROM catalog_options WHERE shopId = :shopId AND kind = :kind ORDER BY value COLLATE NOCASE")
+    suspend fun getCatalogOptions(shopId: String, kind: String): List<CatalogOptionEntity>
+
     @Query("DELETE FROM products WHERE id = :productId AND shopId = :shopId")
     suspend fun deleteProduct(shopId: String, productId: String)
 
@@ -127,10 +150,11 @@ interface VendoraDao {
     entities = [
         ShopEntity::class,
         ProductEntity::class,
+        CatalogOptionEntity::class,
         StockMovementEntity::class,
         SaleLineEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class VendoraDatabase : RoomDatabase() {
