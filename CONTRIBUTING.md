@@ -11,6 +11,7 @@
    .\gradlew.bat assembleDebug
    ```
 6. Open a pull request describing the behavior change, tests run, and any migration or user-visible impact.
+7. Routine CI builds the debug APK, runs JVM unit tests, and compiles instrumentation-test sources without starting an emulator. If a change needs Room/Android runtime verification, manually dispatch **Android CI and Release Builds** with `run_instrumentation=true`; do not enable emulator execution for routine PRs just to make the workflow look more comprehensive.
 
 ## Commit messages
 Use concise Conventional Commit-style messages:
