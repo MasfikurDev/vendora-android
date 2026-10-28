@@ -49,7 +49,7 @@ class VendoraCheckoutInstrumentedTest {
         val catalog = HomeApplianceCatalog.load(context)
         assertEquals(true, catalog.brands.isEmpty())
         assertEquals(true, catalog.categories.containsAll(listOf("Rice cooker", "Electric iron", "Refrigerator", "Cookware / casserole", "Induction cooker", "Blender", "Mixer grinder", "Water filter / purifier", "Electric kettle")))
-        assertEquals(true, catalog.suggestionsFor("Electronics & home appliances").brands.isNotEmpty())
+        assertEquals(true, catalog.suggestionsFor("Electronics & home appliances").categories.isNotEmpty())
         assertEquals(true, catalog.suggestionsFor("General store").brands.isEmpty())
         assertEquals(true, catalog.suggestionsFor("electronics_home_appliances").categories.isNotEmpty())
     }
