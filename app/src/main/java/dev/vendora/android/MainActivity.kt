@@ -109,7 +109,7 @@ private fun ShopSelectionScreen(
             } else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("YOUR SHOPS", style = MaterialTheme.typography.labelMedium, color = VendoraMuted, fontWeight = FontWeight.SemiBold)
-                    Text("\${shops.size} \${if (shops.size == 1) "shop" else "shops"}", style = MaterialTheme.typography.labelLarge, color = VendoraMuted)
+                    Text("${shops.size} ${if (shops.size == 1) "shop" else "shops"}", style = MaterialTheme.typography.labelLarge, color = VendoraMuted)
                 }
                 Spacer(Modifier.height(12.dp))
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
