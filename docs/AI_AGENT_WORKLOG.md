@@ -15,6 +15,15 @@ This is a durable handoff for coding agents working on Vendora. It records obser
 7. **Treat docs as part of the implementation.** When source behavior, architecture, CI, release behavior, or project status changes, update the relevant docs in the same focused change. Keep transition history rather than leaving contradictory status statements.
 8. **Never invent capabilities.** If an API/connector action, file, test, build result, or UI integration cannot be verified, say so and investigate rather than claiming success.
 
+## Open data and shop type catalog handoff
+
+- Branch: `feat/shop-type-taxonomy-open-data`, based on `feat/reusable-product-details`; it is intentionally dependent on PR #30 and should not be merged to `main` before its base feature is integrated.
+- The create-shop dialog loads the offline bundled asset `app/src/main/assets/catalog/shop_types.json` through `ShopTypeCatalog.kt`. The catalog currently has 21 types, stable IDs, English/Bengali labels, aliases, and OSM reference tags. The catalog is checked in as data rather than fetched from the network.
+- For compatibility, the current Room `businessType` value remains the selected English label. Stable IDs are not persisted yet. A future migration should add an explicit `businessTypeId`, map legacy labels/aliases, and retain existing labels without destructive rewriting.
+- Source/license guidance lives in `docs/data/open-data-sources-and-catalog-rules.md`. OpenStreetMap taxonomy is a reference with ODbL obligations to review; BBS BSIC is an official industry-classification reference; Bangladesh Customs HS codes classify goods rather than shops; Open Food Facts is a possible optional product lookup with ODbL/DbCL/image licensing and API-rate-limit obligations.
+- Do not call this taxonomy legal or tax compliance. Do not import tariff rates, claim business licensing validation, or bulk-copy product images/data without source-specific legal and attribution review.
+- Catalog instrumentation test checks IDs, labels, fallback option, and asset loading; CI only compiles instrumentation tests under the current workflow unless a device/emulator job is explicitly added.
+
 ## Current feature handoff: reusable product details
 
 - Active branch: `feat/reusable-product-details`; this branch is based on the checkout-integrity feature branch, not on `main` directly.
