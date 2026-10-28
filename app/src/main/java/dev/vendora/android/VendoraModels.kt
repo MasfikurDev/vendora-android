@@ -10,6 +10,11 @@ fun ProductEntity.toProduct(): Product = Product(
     quantity = quantity,
     purchasePricePoisha = purchasePricePoisha,
     sellingPricePoisha = sellingPricePoisha,
+    brand = brand,
+    category = category,
+    unit = unit,
+    barcode = barcode,
+    lowStockThreshold = lowStockThreshold,
 )
 
 fun Product.toEntity(): ProductEntity = ProductEntity(
@@ -20,4 +25,9 @@ fun Product.toEntity(): ProductEntity = ProductEntity(
     quantity = quantity,
     purchasePricePoisha = purchasePricePoisha,
     sellingPricePoisha = sellingPricePoisha,
+    brand = brand.trim(),
+    category = category.trim(),
+    unit = unit.trim().ifBlank { "pcs" },
+    barcode = barcode.trim(),
+    lowStockThreshold = lowStockThreshold,
 )
