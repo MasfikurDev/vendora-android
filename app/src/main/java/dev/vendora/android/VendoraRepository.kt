@@ -96,6 +96,23 @@ class VendoraRepository(
     suspend fun initializeFromLegacy(context: Context) = LegacyDataImporter(context).importIfNeeded(database)
     suspend fun getShops(): List<ShopEntity> = dao.getShops()
 
+    suspend fun saveShop(shop: ShopEntity) {
+        require(shop.id.isNotBlank() && shop.name.isNotBlank() && shop.businessType.isNotBlank()) {
+            "A shop name and business type are required."
+        }
+        dao.upsertShop(shop.copy(name = shop.name.trim(), businessType = shop.businessType.trim()))
+    }
+
+    suspend fun getSaleLines(shopId: String): List<SaleLineEntity> {
+        require(shopId.isNotBlank()) { "A shop is required." }
+        return dao.getSaleLines(shopId)
+    }
+
+    suspend fun getStockMovements(shopId: String): List<StockMovementEntity> {
+        require(shopId.isNotBlank()) { "A shop is required." }
+        return dao.getStockMovements(shopId)
+    }
+
     suspend fun getProducts(shopId: String): List<ProductEntity> {
         require(shopId.isNotBlank()) { "A shop is required." }
         return dao.getProducts(shopId)
@@ -106,12 +123,55 @@ class VendoraRepository(
         return dao.getProduct(shopId, productId)
     }
 
-    suspend fun saveProduct(product: ProductEntity) {
+    suspend fun saveProduct(product: ProductEntity, timestampMillis: Long = System.currentTimeMillis()) {
         require(product.shopId.isNotBlank() && product.name.isNotBlank()) { "A shop and product name are required." }
         require(product.quantity >= 0) { "Stock cannot be negative." }
         require(product.purchasePricePoisha >= 0L && product.sellingPricePoisha >= 0L) { "Prices cannot be negative." }
-        val existing = dao.getProduct(product.shopId, product.id)
-        if (existing == null) dao.insertProduct(product) else dao.updateProduct(product)
+        val normalized = product.copy(name = product.name.trim(), sku = product.sku.trim())
+        database.withTransaction {
+            val duplicateSku = dao.getProducts(normalized.shopId).any {
+                it.id != normalized.id && normalized.sku.isNotBlank() &&
+                    it.sku.equals(normalized.sku, ignoreCase = true)
+            }
+            require(!duplicateSku) { "This SKU already exists in this shop." }
+            val existing = dao.getProduct(normalized.shopId, normalized.id)
+            if (existing == null) {
+                dao.insertProduct(normalized)
+                if (normalized.quantity > 0) {
+                    dao.insertStockMovements(listOf(StockMovementEntity(
+                        id = UUID.randomUUID().toString(),
+                        shopId = normalized.shopId,
+                        productId = normalized.id,
+                        productName = normalized.name,
+                        delta = normalized.quantity,
+                        quantityBefore = 0,
+                        quantityAfter = normalized.quantity,
+                        reason = "Initial stock",
+                        timestampMillis = timestampMillis,
+                    )))
+                }
+            } else {
+                if (existing.quantity != normalized.quantity) {
+                    dao.insertStockMovements(listOf(StockMovementEntity(
+                        id = UUID.randomUUID().toString(),
+                        shopId = normalized.shopId,
+                        productId = normalized.id,
+                        productName = normalized.name,
+                        delta = normalized.quantity - existing.quantity,
+                        quantityBefore = existing.quantity,
+                        quantityAfter = normalized.quantity,
+                        reason = "Inventory edit",
+                        timestampMillis = timestampMillis,
+                    )))
+                }
+                dao.updateProduct(normalized)
+            }
+        }
+    }
+
+    suspend fun deleteProduct(shopId: String, productId: String) {
+        require(shopId.isNotBlank() && productId.isNotBlank()) { "A shop and product are required." }
+        dao.deleteProduct(shopId, productId)
     }
 
     suspend fun recordStockAdjustment(

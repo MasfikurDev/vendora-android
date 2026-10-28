@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -29,19 +30,28 @@ private val DashboardInk = Color(0xFF17231F)
 private enum class ShopSection(val label: String) {
     Overview("Overview"),
     Products("Products"),
+    Selling("Selling"),
     Insights("Insights"),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
-    var products by remember(shop.id) { mutableStateOf(productStore.getProducts(shop.id)) }
+fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var products by remember(shop.id) { mutableStateOf(emptyList<Product>()) }
+    LaunchedEffect(shop.id) {
+        products = repository.getProducts(shop.id).map { it.toProduct() }
+    }
     var section by remember { mutableStateOf(ShopSection.Overview) }
     var query by remember { mutableStateOf("") }
     var showEditor by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Product?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var productPendingDelete by remember { mutableStateOf<Product?>(null) }
+    var cartQuantities by remember(shop.id) { mutableStateOf(emptyMap<String, Int>()) }
+    var checkoutBusy by remember { mutableStateOf(false) }
+    var checkoutError by remember { mutableStateOf<String?>(null) }
+    var checkoutSuccess by remember { mutableStateOf<String?>(null) }
 
     val lowStock = products.filter { it.quantity <= 5 }
     val units = products.sumOf { it.quantity }
@@ -86,6 +96,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                                 when (item) {
                                     ShopSection.Overview -> "⌂"
                                     ShopSection.Products -> "▦"
+                                    ShopSection.Selling -> "＋"
                                     ShopSection.Insights -> "↗"
                                 },
                                 style = MaterialTheme.typography.titleLarge,
@@ -120,6 +131,40 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                 onEdit = { editing = it; error = null; showEditor = true },
                 onDelete = { productPendingDelete = it },
             )
+            ShopSection.Selling -> SellingContent(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                products = products,
+                quantities = cartQuantities,
+                busy = checkoutBusy,
+                error = checkoutError,
+                success = checkoutSuccess,
+                onAddProduct = { section = ShopSection.Products; editing = null; error = null; showEditor = true },
+                onQuantityChange = { product, quantity ->
+                    cartQuantities = if (quantity <= 0) cartQuantities - product.id else cartQuantities + (product.id to quantity)
+                    checkoutError = null
+                    checkoutSuccess = null
+                },
+                onCheckout = {
+                    scope.launch {
+                        checkoutBusy = true
+                        checkoutError = null
+                        checkoutSuccess = null
+                        try {
+                            val lines = cartQuantities.filterValues { it > 0 }.map { (productId, quantity) ->
+                                CheckoutLine(productId = productId, quantity = quantity)
+                            }
+                            val result = repository.checkout(shop.id, lines)
+                            products = repository.getProducts(shop.id).map { it.toProduct() }
+                            cartQuantities = emptyMap()
+                            checkoutSuccess = "Sale recorded. Total: ${formatBdt(result.totalPoisha)}"
+                        } catch (failure: Exception) {
+                            checkoutError = failure.message ?: "Checkout failed. Stock was not changed."
+                        } finally {
+                            checkoutBusy = false
+                        }
+                    }
+                },
+            )
             ShopSection.Insights -> InsightsContent(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 products = products,
@@ -139,9 +184,14 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
             text = { Text("This removes the product from ${shop.name}'s inventory. This action cannot be undone.") },
             confirmButton = {
                 Button(onClick = {
-                    productStore.deleteProduct(shop.id, product.id)
-                    products = productStore.getProducts(shop.id)
-                    productPendingDelete = null
+                    scope.launch {
+                        runCatching {
+                            repository.deleteProduct(shop.id, product.id)
+                            products = repository.getProducts(shop.id).map { it.toProduct() }
+                            cartQuantities = cartQuantities - product.id
+                            productPendingDelete = null
+                        }.onFailure { error = it.message ?: "Could not delete product." }
+                    }
                 }) { Text("Delete product") }
             },
             dismissButton = { TextButton(onClick = { productPendingDelete = null }) { Text("Cancel") } },
@@ -154,22 +204,92 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
             error = error,
             onDismiss = { showEditor = false },
             onSave = { name, sku, quantity, purchase, selling ->
-                runCatching {
-                    val product = Product(
-                        id = editing?.id ?: ProductStore.newId(),
-                        shopId = shop.id,
-                        name = name,
-                        sku = sku,
-                        quantity = quantity,
-                        purchasePricePoisha = purchase,
-                        sellingPricePoisha = selling,
-                    )
-                    productStore.saveProduct(product)
-                    products = productStore.getProducts(shop.id)
-                    showEditor = false
-                }.onFailure { error = it.message ?: "Could not save product." }
+                scope.launch {
+                    runCatching {
+                        val product = Product(
+                            id = editing?.id ?: ProductStore.newId(),
+                            shopId = shop.id,
+                            name = name,
+                            sku = sku,
+                            quantity = quantity,
+                            purchasePricePoisha = purchase,
+                            sellingPricePoisha = selling,
+                        )
+                        repository.saveProduct(product.toEntity())
+                        products = repository.getProducts(shop.id).map { it.toProduct() }
+                        showEditor = false
+                    }.onFailure { error = it.message ?: "Could not save product." }
+                }
             },
         )
+    }
+}
+
+@Composable
+private fun SellingContent(
+    modifier: Modifier,
+    products: List<Product>,
+    quantities: Map<String, Int>,
+    busy: Boolean,
+    error: String?,
+    success: String?,
+    onAddProduct: () -> Unit,
+    onQuantityChange: (Product, Int) -> Unit,
+    onCheckout: () -> Unit,
+) {
+    val selected = products.filter { (quantities[it.id] ?: 0) > 0 }
+    val total = selected.sumOf { product -> product.sellingPricePoisha * (quantities[product.id] ?: 0).toLong() }
+
+    Column(modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text("Sell products", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Choose quantities. Stock is deducted only after checkout succeeds.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(12.dp))
+        if (products.isEmpty()) {
+            EmptyInventoryCard(onAddProduct = onAddProduct)
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 12.dp),
+            ) {
+                items(products, key = { it.id }) { product ->
+                    val quantity = quantities[product.id] ?: 0
+                    Card(shape = RoundedCornerShape(16.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(product.name, fontWeight = FontWeight.SemiBold)
+                                    Text("${formatBdt(product.sellingPricePoisha)} each · ${product.quantity} available",
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(onClick = { onQuantityChange(product, quantity - 1) }, enabled = quantity > 0, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("−") }
+                                    Text(quantity.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    OutlinedButton(onClick = { onQuantityChange(product, quantity + 1) }, enabled = quantity < product.quantity, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("+") }
+                                }
+                            }
+                            if (quantity > 0) {
+                                Text("Line total: ${formatBdt(product.sellingPricePoisha * quantity.toLong())}", color = DashboardGreen, style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        if (success != null) Text(success, color = DashboardGreen, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Cart total", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(formatBdt(total), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("${selected.size} product line(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Button(onClick = onCheckout, enabled = selected.isNotEmpty() && !busy, shape = RoundedCornerShape(14.dp)) {
+                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                else Text("Complete sale")
+            }
+        }
     }
 }
 
@@ -463,7 +583,7 @@ private fun parsePoisha(value: String): Long? {
         2 -> parts[1].toLongOrNull() ?: return null
         else -> return null
     }
-    return taka * 100 + poisha
+    return try { Math.addExact(Math.multiplyExact(taka, 100L), poisha) } catch (_: ArithmeticException) { null }
 }
 
 private fun formatBdt(poisha: Long): String =

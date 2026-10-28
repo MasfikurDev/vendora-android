@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
+import java.util.UUID
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,6 +29,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val shopStore = ShopStore(applicationContext)
+        val repository = VendoraRepository(VendoraDatabaseProvider.get(applicationContext))
         setContent {
             MaterialTheme(
                 colorScheme = lightColorScheme(
@@ -41,66 +44,75 @@ class MainActivity : ComponentActivity() {
                     onSecondaryContainer = VendoraGreen,
                 )
             ) {
-                ShopSelectionScreen(shopStore, ProductStore(applicationContext))
+                ShopSelectionScreen(repository, shopStore, applicationContext)
             }
         }
     }
 }
 
 @Composable
-private fun ShopSelectionScreen(shopStore: ShopStore, productStore: ProductStore) {
-    var shops by remember { mutableStateOf(shopStore.getShops()) }
+private fun ShopSelectionScreen(
+    repository: VendoraRepository,
+    shopStore: ShopStore,
+    context: android.content.Context,
+) {
+    val scope = rememberCoroutineScope()
+    var shops by remember { mutableStateOf(emptyList<Shop>()) }
     var activeShopId by remember { mutableStateOf(shopStore.getActiveShopId()) }
     var openedShopId by remember { mutableStateOf<String?>(null) }
-    var showCreateShop by remember { mutableStateOf(shops.isEmpty()) }
+    var showCreateShop by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var refreshKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(repository, refreshKey) {
+        loading = true
+        error = null
+        try {
+            repository.initializeFromLegacy(context)
+            shops = repository.getShops().map { it.toShop() }
+            if (activeShopId != null && shops.none { it.id == activeShopId }) activeShopId = null
+            if (shops.isEmpty()) showCreateShop = true
+        } catch (failure: Exception) {
+            error = failure.message ?: "Vendora could not load saved data."
+        } finally {
+            loading = false
+        }
+    }
 
     val openedShop = shops.firstOrNull { it.id == openedShopId }
     if (openedShop != null) {
-        ShopDashboard(shop = openedShop, productStore = productStore, onBack = { openedShopId = null })
+        ShopDashboard(shop = openedShop, repository = repository, onBack = { openedShopId = null })
         return
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 24.dp),
-        ) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 24.dp)) {
             Text("VENDORA", style = MaterialTheme.typography.labelLarge, color = VendoraGreen, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(24.dp))
             Text("Your businesses", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = VendoraInk)
             Spacer(Modifier.height(8.dp))
             Text("Keep every shop organized in one place.", style = MaterialTheme.typography.bodyLarge, color = VendoraMuted)
             Spacer(Modifier.height(24.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("YOUR SHOPS", style = MaterialTheme.typography.labelMedium, color = VendoraMuted, fontWeight = FontWeight.SemiBold)
-                Text("${shops.size} ${if (shops.size == 1) "shop" else "shops"}", style = MaterialTheme.typography.labelLarge, color = VendoraMuted)
-            }
-            Spacer(Modifier.height(12.dp))
 
-            if (shops.isEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                ) {
-                    Column(Modifier.padding(24.dp)) {
-                        Box(Modifier.size(52.dp).background(Color(0xFFE1F1E9), CircleShape), contentAlignment = Alignment.Center) {
-                            Text("+", color = VendoraGreen, style = MaterialTheme.typography.headlineMedium)
-                        }
-                        Spacer(Modifier.height(18.dp))
-                        Text("Start with your first shop", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Add a business to begin organizing its products and daily activity.", style = MaterialTheme.typography.bodyMedium, color = VendoraMuted)
-                        Spacer(Modifier.height(20.dp))
-                        Button(onClick = { showCreateShop = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-                            Text("Create your first shop")
-                        }
+            if (loading) {
+                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            } else if (error != null) {
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Your saved data could not be loaded", fontWeight = FontWeight.SemiBold)
+                        Text(error.orEmpty(), style = MaterialTheme.typography.bodyMedium)
+                        Text("Your old data has not been intentionally deleted. Retry after checking the saved data.", style = MaterialTheme.typography.bodySmall)
+                        Button(onClick = { refreshKey++ }) { Text("Retry") }
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("YOUR SHOPS", style = MaterialTheme.typography.labelMedium, color = VendoraMuted, fontWeight = FontWeight.SemiBold)
+                    Text("${shops.size} ${if (shops.size == 1) "shop" else "shops"}", style = MaterialTheme.typography.labelLarge, color = VendoraMuted)
+                }
+                Spacer(Modifier.height(12.dp))
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(shops, key = { it.id }) { shop ->
                         val isActive = shop.id == activeShopId
                         Card(
@@ -115,10 +127,7 @@ private fun ShopSelectionScreen(shopStore: ShopStore, productStore: ProductStore
                             border = if (isActive) BorderStroke(1.dp, VendoraGreen.copy(alpha = 0.45f)) else null,
                         ) {
                             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    Modifier.size(48.dp).background(if (isActive) VendoraGreen else Color(0xFFF0F3F1), RoundedCornerShape(15.dp)),
-                                    contentAlignment = Alignment.Center,
-                                ) {
+                                Box(Modifier.size(48.dp).background(if (isActive) VendoraGreen else Color(0xFFF0F3F1), RoundedCornerShape(15.dp)), contentAlignment = Alignment.Center) {
                                     Text(shop.name.firstOrNull()?.uppercase() ?: "S", color = if (isActive) Color.White else VendoraGreen, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                                 }
                                 Spacer(Modifier.width(14.dp))
@@ -131,18 +140,12 @@ private fun ShopSelectionScreen(shopStore: ShopStore, productStore: ProductStore
                                     Surface(color = VendoraGreen, shape = RoundedCornerShape(100.dp)) {
                                         Text("ACTIVE", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                     }
-                                } else {
-                                    Text("›", color = VendoraMuted, style = MaterialTheme.typography.headlineMedium)
-                                }
+                                } else Text("›", color = VendoraMuted, style = MaterialTheme.typography.headlineMedium)
                             }
                         }
                     }
                     item {
-                        OutlinedButton(
-                            onClick = { showCreateShop = true },
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).height(54.dp),
-                            shape = RoundedCornerShape(16.dp),
-                        ) {
+                        OutlinedButton(onClick = { showCreateShop = true }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp).height(54.dp), shape = RoundedCornerShape(16.dp)) {
                             Text("+   Add another shop", fontWeight = FontWeight.SemiBold)
                         }
                     }
@@ -155,14 +158,20 @@ private fun ShopSelectionScreen(shopStore: ShopStore, productStore: ProductStore
         }
     }
 
-    if (showCreateShop) {
+    if (showCreateShop && !loading && error == null) {
         CreateShopDialog(
-            onDismiss = { showCreateShop = false },
+            onDismiss = { if (shops.isNotEmpty()) showCreateShop = false },
             onCreate = { name, businessType ->
-                val created = shopStore.createShop(name, businessType)
-                shops = shopStore.getShops()
-                activeShopId = created.id
-                showCreateShop = false
+                scope.launch {
+                    runCatching {
+                        val created = ShopEntity(UUID.randomUUID().toString(), name.trim(), businessType)
+                        repository.saveShop(created)
+                        shops = repository.getShops().map { it.toShop() }
+                        activeShopId = created.id
+                        shopStore.setActiveShopId(created.id)
+                        showCreateShop = false
+                    }.onFailure { error = it.message ?: "Could not create this shop." }
+                }
             },
         )
     }

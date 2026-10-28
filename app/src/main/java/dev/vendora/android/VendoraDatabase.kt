@@ -107,6 +107,9 @@ interface VendoraDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun importProducts(products: List<ProductEntity>)
 
+    @Query("DELETE FROM products WHERE id = :productId AND shopId = :shopId")
+    suspend fun deleteProduct(shopId: String, productId: String)
+
     @Query("SELECT * FROM stock_movements WHERE shopId = :shopId ORDER BY timestampMillis DESC")
     suspend fun getStockMovements(shopId: String): List<StockMovementEntity>
 
