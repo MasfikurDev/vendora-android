@@ -80,7 +80,7 @@ See [Reusable product details and roadmap](docs/product/reusable-product-details
 
 ## License
 
-A license has not yet been selected. Do not assume this project is open source merely because the repository is public.
+Vendora application source code is licensed under the [Apache License 2.0](LICENSE). Third-party data, assets, and dependencies may have separate terms; see [Third-party notices and data licensing](THIRD_PARTY_NOTICES.md). Do not assume the Apache license overrides those separate terms.
 
 ## Feature preview releases
 
