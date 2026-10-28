@@ -69,7 +69,8 @@ jobs:
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Prepare persistent debug signing key
-        if: github.event_name != 'pull_request'
+        # Same-repository PRs can use repo secrets; fork PRs must never receive them.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         shell: bash
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
@@ -118,12 +119,12 @@ jobs:
           test -s "$APK"
           sha256sum "$APK" | sed 's#app/build/outputs/apk/debug/##' > SHA256SUMS.txt
 
-          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
-            SIGNING_NOTE="PR validation APK; signed with the runner's temporary debug key and not intended for updating installed CI builds."
-            BUILD_TYPE="debug (PR-only temporary signing)"
-          else
-            SIGNING_NOTE="Persistent debug signing enabled; future CI debug builds using this key can update this installation."
+          if [[ -n "${DEBUG_KEYSTORE_PATH:-}" ]]; then
+            SIGNING_NOTE="Persistent Vendora debug signing enabled; feature-branch and main builds using this key can update this installation."
             BUILD_TYPE="debug (persistent Vendora debug key)"
+          else
+            SIGNING_NOTE="Temporary runner debug signing; this APK cannot update an installation signed with the persistent Vendora debug key."
+            BUILD_TYPE="debug (temporary PR signing; fork-safe)"
           fi
 
           {
