@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`.github/workflows/ui-preview.yml` is a downstream visual-preview pipeline. It runs only after **Android CI and Release Builds** completes successfully for a push to `main`. It downloads the exact APK artifact from that run, launches it in an ephemeral Android emulator, creates clearly named sample data through the app's user interface, captures screenshots, and publishes the output to the separate `ui-previews` branch.
+`.github/workflows/ui-preview.yml` is a downstream visual-preview pipeline. It runs only after **Android CI and Release Builds** completes successfully for a build associated with `main`, including a manual build dispatch on `main`. It downloads the exact APK artifact from that run, launches it in an ephemeral Android emulator, creates clearly named sample data through the app's user interface, captures screenshots, and publishes the output to the separate `ui-previews` branch.
 
 ## Isolation and safety
 
@@ -27,7 +27,7 @@ The README embeds the stable image paths from the `ui-previews` branch. The gene
 
 ## Trigger policy
 
-The initial implementation intentionally previews successful pushes to `main` only. It does not execute APKs produced by PRs or feature branches in a privileged `workflow_run` context. The upstream build artifact is named `vendora-build-<run_number>-<run_attempt>`; the preview job downloads that exact artifact by run ID.
+The initial implementation intentionally previews successful builds associated with `main` only, including manually dispatched builds on `main`. It does not execute APKs produced by PRs or feature branches in a privileged `workflow_run` context. The upstream build artifact is named `vendora-build-<run_number>-<run_attempt>`; the preview job downloads that exact artifact by run ID.
 
 ## Demo automation
 
