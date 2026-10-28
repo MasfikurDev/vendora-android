@@ -106,33 +106,191 @@ The following capabilities have foundations in the current source. They should n
 
 ## Architecture at a glance
 
-```text
-Compose UI (Android)
-        |
-        v
-Repository / business operations
-        |
-        v
-Room DAOs + SQLite transactions
-        |
-        +--> Shops and shop-scoped records
-        +--> Products and stock movements
-        +--> Sales and sale-line snapshots
-        |
-        v
-Local-first operation; network is not required for core flows
-```
+Vendora is **offline-first**: the local Room database backed by SQLite is the source of truth for core shop operations. UI state flows down to the UI from ViewModels, while user intents flow through repositories and transactional data operations. The diagrams below document the intended layer boundaries and current checkout invariants.
 
-**Architecture rules**
+### 1. System architecture and unidirectional data flow
 
-1. Keep UI rendering separate from persistence and business rules.
-2. Scope reads and writes to the active shop where the data belongs to a shop.
-3. Perform sale creation and stock deduction atomically.
-4. Store money as integer minor units (poisha), not floating-point values.
-5. Snapshot relevant prices and costs on sale lines so later product edits do not rewrite transaction history.
-6. Treat stock movements as an auditable record of inventory changes rather than silently overwriting history.
-7. Use explicit Room migrations. Never introduce destructive migration fallbacks for real user data.
-8. Keep AI optional. Financial calculations and permission checks must remain deterministic application responsibilities.
+~~~mermaid
+flowchart TB
+    subgraph UI["Presentation · Jetpack Compose"]
+        Screen["Composable screens"]
+        Intent["User intents<br/>search · edit · checkout"]
+        Render["Render immutable UI state"]
+    end
+    subgraph VM["Presentation state · ViewModels"]
+        VMAction["Intent handlers"]
+        State["StateFlow&lt;UiState&gt;"]
+    end
+    subgraph DATA["Data and domain boundary"]
+        Repo["Repository / use-case operations"]
+        Validate["Validation and business rules"]
+    end
+    subgraph LOCAL["Local persistence · offline-first"]
+        DAO["Room DAO queries and writes"]
+        Tx["Room transaction boundary"]
+        SQLite[("SQLite database<br/>shops · products · sale lines · stock movements")]
+    end
+    Screen --> Intent --> VMAction
+    VMAction --> Repo
+    Repo --> Validate --> DAO
+    DAO --> Tx --> SQLite
+    SQLite --> DAO
+    DAO --> Repo
+    Repo --> State --> Render --> Screen
+    classDef local fill:#e8f5e9,stroke:#2e7d32,color:#16351a
+    classDef rule fill:#fff3e0,stroke:#ef6c00,color:#4e2b00
+    class SQLite,Tx,DAO local
+    class Validate rule
+~~~
+
+**UDF contract:** UI events move toward the data layer; observed results are converted into screen state and emitted back through StateFlow. Composables render state rather than querying Room directly. Core reads and writes do not require a network connection. Money is represented in integer minor units (poisha/cents), never floating-point currency values.
+
+### 2. Atomic checkout sequence
+
+Checkout validates every cart line before the first write. Sale-line snapshots, stock deductions, and audit movement writes execute inside one RoomDatabase.withTransaction boundary. Any exception—including insufficient stock—aborts the transaction; no partial checkout should be committed.
+
+~~~mermaid
+sequenceDiagram
+    autonumber
+    actor Cashier
+    participant UI as Compose Sell screen
+    participant Repo as VendoraRepository.checkout
+    participant DB as Room withTransaction
+    participant DAO as VendoraDao
+    participant SQLite as SQLite
+    Cashier->>UI: Confirm cart
+    UI->>Repo: checkout(shopId, cart)
+    Repo->>Repo: Validate shop, non-empty cart, positive quantities, unique products
+    Repo->>DB: Begin transaction
+    loop Every cart line
+        DB->>DAO: getProduct(shopId, productId)
+        DAO->>SQLite: SELECT product scoped by shopId
+        SQLite-->>DAO: Product and current quantity
+        DAO-->>DB: Product or not found
+        DB->>DB: Validate available stock and price
+        alt Product missing or insufficient stock
+            DB-->>Repo: Throw validation error
+            Repo-->>UI: Checkout rejected; show actionable error
+            Note over DB,SQLite: Transaction rolls back; no sale line, stock decrement, or movement is committed
+        end
+    end
+    Note over DB: All cart lines are validated before writes
+    DB->>DB: Freeze product name, SKU, quantity, unit selling price and unit cost snapshots
+    DB->>DB: Calculate line and cart totals with checked integer arithmetic (poisha/cents)
+    loop Each prepared cart line
+        DB->>DAO: insertSaleLines(snapshot)
+        DAO->>SQLite: INSERT sale_lines
+        DB->>DAO: updateProduct(quantity - sold quantity)
+        DAO->>SQLite: UPDATE products
+    end
+    DB->>DAO: insertStockMovements(audit records)
+    DAO->>SQLite: INSERT stock_movements
+    DB->>DB: Commit transaction
+    DB-->>Repo: CheckoutResult
+    Repo-->>UI: Success and total
+    UI-->>Cashier: Show completed checkout
+~~~
+
+**Transaction invariants**
+- **Validate first:** every product must exist in the selected shop and have enough stock before writes begin.
+- **Snapshot history:** each SaleLine stores product name, SKU, quantity, unit price, unit cost, and line total captured at checkout. Later catalog edits must not rewrite historical sale values.
+- **Auditable stock:** every checkout decrement appends a movement with a negative delta, quantity before/after, reason Sale, shop/product identity, and timestamp.
+- **Atomicity:** sale-line inserts, product quantity updates, and movement inserts commit or roll back together.
+- **Low-stock handling:** insufficient stock rejects checkout rather than allowing negative inventory. The UI should show the product and available quantity; a low-stock warning must not bypass validation.
+- **Money safety:** totals use integer minor units and checked arithmetic to detect overflow.
+
+### 3. Entity-relationship model
+
+The following is the **logical target model** for durable sale headers and referential integrity. It documents the relationships the schema should enforce; it is not a claim that every constraint is already present in the current Room schema.
+
+~~~mermaid
+erDiagram
+    SHOP ||--o{ PRODUCT : owns
+    SHOP ||--o{ STOCK_MOVEMENT : scopes
+    SHOP ||--o{ SALE : scopes
+    SALE ||--|{ SALE_LINE : contains
+    PRODUCT ||--o{ SALE_LINE : sold_as
+    PRODUCT ||--o{ STOCK_MOVEMENT : changes
+    SHOP {
+        string id PK
+        string name
+        string businessType
+    }
+    PRODUCT {
+        string id PK
+        string shopId FK
+        string name
+        string sku
+        int quantity
+        long purchasePricePoisha
+        long sellingPricePoisha
+    }
+    STOCK_MOVEMENT {
+        string id PK
+        string shopId FK
+        string productId FK
+        string productName
+        int delta
+        int quantityBefore
+        int quantityAfter
+        string reason
+        long timestampMillis
+    }
+    SALE {
+        string id PK
+        string shopId FK
+        long totalPoisha
+        long timestampMillis
+    }
+    SALE_LINE {
+        string id PK
+        string saleId FK
+        string shopId FK
+        string productId FK
+        string productName
+        string sku
+        int quantity
+        long unitPricePoisha
+        long unitCostPoisha
+        long totalPoisha
+        long timestampMillis
+    }
+~~~
+
+**Schema status:** current VendoraDatabase.kt declares Shop, Product, StockMovement, and SaleLine tables. Checkout currently records sale-line rows rather than a separate Sale header, and these entities do not yet declare Room foreign-key constraints. This ER diagram shows the intended normalized relationship model; adding a Sale header, saleLine.saleId, and database-enforced foreign keys requires a deliberate schema migration and tests.
+
+### 4. Active-shop isolation boundary
+
+~~~mermaid
+flowchart TB
+    Switch["Business screen / active-shop selector"]
+    Active["Active shop context<br/>activeShopId"]
+    UI["Screens and ViewModels"]
+    Repo["Repository methods<br/>require explicit shopId"]
+    Guard["Scope validation and ownership checks"]
+    DAO["DAO queries and writes<br/>shopId is part of predicate"]
+    DB[("SQLite tables<br/>shop-owned rows carry shopId")]
+    Other["Other shop records"]
+    Switch --> Active
+    Active --> UI
+    UI -->|"shopId + intent"| Repo
+    Repo --> Guard --> DAO
+    DAO -->|"WHERE shopId = :shopId and product id where needed"| DB
+    DB -->|"only rows in requested scope"| DAO
+    DB -. "excluded from scoped query" .-> Other
+    classDef scope fill:#e3f2fd,stroke:#1565c0,color:#0d2d4d
+    class Active,Guard scope
+~~~
+
+**Isolation rules**
+- The active shop is an explicit context, not a global assumption hidden inside a DAO.
+- Pass shopId to every shop-owned repository operation; reject blank identifiers.
+- Read and mutate a product using both shopId and productId, not its ID alone.
+- Scope stock movements and sale history by shopId; checkout snapshots the same shop identity on every row.
+- Never trust a UI-provided shop identifier by itself for authorization. Validate that referenced records belong to the requested shop.
+- Current DAO queries scope products, stock movements, and sale lines. Database-level foreign keys and composite ownership constraints remain a hardening task.
+
+See [Architecture principles](docs/architecture/principles.md) for the implementation rules and transaction contract.
 
 ## Data integrity principles
 
