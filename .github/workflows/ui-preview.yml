@@ -1,0 +1,57 @@
+name: UI Preview Screenshots
+
+# This workflow is deliberately downstream from the APK workflow. It never gates or
+# modifies the Android build, does not publish releases, and only runs trusted main pushes.
+on:
+  workflow_run:
+    workflows: ["Android CI and Release Builds"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: vendora-ui-preview-main
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Launch demo app and capture screenshots
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download the exact APK from the successful build
+        uses: actions/download-artifact@v4
+        with:
+          name: vendora-build-${{ github.event.workflow_run.run_number }}-${{ github.event.workflow_run.run_attempt }}
+          path: input
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start isolated Android emulator and capture preview screens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim
+          script: |
+            python3 scripts/ui-preview/capture_demo.py --apk input/app-debug.apk --output preview-output/screenshots
+            python3 scripts/ui-preview/build_gallery.py --screenshots preview-output/screenshots --output preview-output/index.html --run-url "${{ github.event.workflow_run.html_url }}" --commit "${{ github.event.workflow_run.head_sha }}"
+
+      - name: Publish latest screenshots to the isolated ui-previews branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: ui-previews
+          publish_dir: preview-output
+          force_orphan: true
+          commit_message: "docs(preview): refresh screenshots from main build ${{ github.event.workflow_run.run_number }}"
