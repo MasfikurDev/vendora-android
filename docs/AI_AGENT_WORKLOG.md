@@ -15,6 +15,16 @@ This is a durable handoff for coding agents working on Vendora. It records obser
 7. **Treat docs as part of the implementation.** When source behavior, architecture, CI, release behavior, or project status changes, update the relevant docs in the same focused change. Keep transition history rather than leaving contradictory status statements.
 8. **Never invent capabilities.** If an API/connector action, file, test, build result, or UI integration cannot be verified, say so and investigate rather than claiming success.
 
+## Current feature handoff: reusable product details
+
+- Active branch: `feat/reusable-product-details`; this branch is based on the checkout-integrity feature branch, not on `main` directly.
+- Product metadata now includes brand, category, unit, barcode, and per-product low-stock threshold. Keep currency as integer poisha.
+- Room schema version is 2 on this branch. `VendoraDatabaseProvider` defines an explicit v1→v2 migration; do not remove it or introduce destructive fallback migration.
+- Reusable brand/category/unit values are stored in `catalog_options`, scoped by shop and normalized case-insensitively. They intentionally survive product deletion.
+- The legacy JSON importer accepts optional new fields and seeds reusable options during the one-time import. Missing fields keep compatible defaults.
+- The product editor supports free-text entry and choosing saved values. Barcode camera scanning, product images, supplier/purchase workflows, expiry/batch tracking, CSV import/export, and shop logos are not implemented; roadmap status is in `docs/product/reusable-product-details.md`.
+- Add or extend instrumentation tests for migration behavior and saved-option persistence. Current CI compiles Android instrumentation test sources but does not execute them on a device/emulator; never describe compilation as runtime test success.
+
 ## Verified repository lessons
 
 ### Stale status in the README
