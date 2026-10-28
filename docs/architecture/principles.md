@@ -110,7 +110,7 @@ Vendora is **offline-first**: the local Room database backed by SQLite is the so
 
 ### 1. System architecture and unidirectional data flow
 
-~~~mermaid
+```mermaid
 flowchart TB
     subgraph UI["Presentation · Jetpack Compose"]
         Screen["Composable screens"]
@@ -141,7 +141,7 @@ flowchart TB
     classDef rule fill:#fff3e0,stroke:#ef6c00,color:#4e2b00
     class SQLite,Tx,DAO local
     class Validate rule
-~~~
+```
 
 **UDF contract:** UI events move toward the data layer; observed results are converted into screen state and emitted back through StateFlow. Composables render state rather than querying Room directly. Core reads and writes do not require a network connection. Money is represented in integer minor units (poisha/cents), never floating-point currency values.
 
@@ -149,7 +149,7 @@ flowchart TB
 
 Checkout validates every cart line before the first write. Sale-line snapshots, stock deductions, and audit movement writes execute inside one RoomDatabase.withTransaction boundary. Any exception—including insufficient stock—aborts the transaction; no partial checkout should be committed.
 
-~~~mermaid
+```mermaid
 sequenceDiagram
     autonumber
     actor Cashier
@@ -189,7 +189,7 @@ sequenceDiagram
     DB-->>Repo: CheckoutResult
     Repo-->>UI: Success and total
     UI-->>Cashier: Show completed checkout
-~~~
+```
 
 **Transaction invariants**
 - **Validate first:** every product must exist in the selected shop and have enough stock before writes begin.
@@ -203,7 +203,7 @@ sequenceDiagram
 
 The following is the **logical target model** for durable sale headers and referential integrity. It documents the relationships the schema should enforce; it is not a claim that every constraint is already present in the current Room schema.
 
-~~~mermaid
+```mermaid
 erDiagram
     SHOP ||--o{ PRODUCT : owns
     SHOP ||--o{ STOCK_MOVEMENT : scopes
@@ -255,13 +255,13 @@ erDiagram
         long totalPoisha
         long timestampMillis
     }
-~~~
+```
 
 **Schema status:** current VendoraDatabase.kt declares Shop, Product, StockMovement, and SaleLine tables. Checkout currently records sale-line rows rather than a separate Sale header, and these entities do not yet declare Room foreign-key constraints. This ER diagram shows the intended normalized relationship model; adding a Sale header, saleLine.saleId, and database-enforced foreign keys requires a deliberate schema migration and tests.
 
 ### 4. Active-shop isolation boundary
 
-~~~mermaid
+```mermaid
 flowchart TB
     Switch["Business screen / active-shop selector"]
     Active["Active shop context<br/>activeShopId"]
@@ -280,7 +280,7 @@ flowchart TB
     DB -. "excluded from scoped query" .-> Other
     classDef scope fill:#e3f2fd,stroke:#1565c0,color:#0d2d4d
     class Active,Guard scope
-~~~
+```
 
 **Isolation rules**
 - The active shop is an explicit context, not a global assumption hidden inside a DAO.
