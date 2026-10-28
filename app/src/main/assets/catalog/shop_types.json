@@ -101,6 +101,20 @@
       ]
     },
     {
+      "id": "electronics_home_appliances",
+      "labelEn": "Electronics & home appliances",
+      "labelBn": "ইলেকট্রনিকস ও গৃহস্থালি যন্ত্রপাতি",
+      "aliases": [
+        "home appliance shop",
+        "appliance store",
+        "electrical appliances",
+        "electronics and appliances"
+      ],
+      "osmTags": [
+        "shop=electronics"
+      ]
+    },
+    {
       "id": "mobile_computer",
       "labelEn": "Mobile / computer",
       "labelBn": "মোবাইল ও কম্পিউটার",

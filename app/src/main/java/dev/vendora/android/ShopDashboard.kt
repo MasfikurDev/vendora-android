@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -39,6 +40,10 @@ private enum class ShopSection(val label: String) {
 @Composable
 fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val starterSuggestions = remember(context, shop.businessType) {
+        HomeApplianceCatalog.load(context).suggestionsFor(shop.businessType)
+    }
     var products by remember(shop.id) { mutableStateOf(emptyList<Product>()) }
     var sales by remember(shop.id) { mutableStateOf(emptyList<SaleEntity>()) }
     var saleLines by remember(shop.id) { mutableStateOf(emptyList<SaleLineEntity>()) }
@@ -47,8 +52,10 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
     var unitOptions by remember(shop.id) { mutableStateOf(listOf("pcs", "kg", "g", "litre", "ml", "box", "pack", "dozen", "meter")) }
     suspend fun refreshProductData() {
         products = repository.getProducts(shop.id).map { it.toProduct() }
-        brandOptions = repository.getCatalogOptions(shop.id, CatalogOptionKind.BRAND)
-        categoryOptions = repository.getCatalogOptions(shop.id, CatalogOptionKind.CATEGORY)
+        brandOptions = (repository.getCatalogOptions(shop.id, CatalogOptionKind.BRAND) + starterSuggestions.brands)
+            .distinctBy { it.trim().lowercase(Locale.ROOT) }
+        categoryOptions = (repository.getCatalogOptions(shop.id, CatalogOptionKind.CATEGORY) + starterSuggestions.categories)
+            .distinctBy { it.trim().lowercase(Locale.ROOT) }
         unitOptions = (listOf("pcs", "kg", "g", "litre", "ml", "box", "pack", "dozen", "meter") +
             repository.getCatalogOptions(shop.id, CatalogOptionKind.UNIT)).distinctBy { it.lowercase() }
     }

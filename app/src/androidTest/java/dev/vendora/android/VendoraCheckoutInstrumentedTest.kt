@@ -43,6 +43,17 @@ class VendoraCheckoutInstrumentedTest {
     }
 
     @Test
+    fun homeApplianceCatalogOffersSuggestionsOnlyForRelevantShops() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val catalog = HomeApplianceCatalog.load(context)
+        assertEquals(true, catalog.brands.containsAll(listOf("VISION", "KIAM", "Prestige", "RFL", "Hawkins", "Minister", "VIGO", "Jaipan", "Jamuna")))
+        assertEquals(true, catalog.categories.containsAll(listOf("Rice cooker", "Electric iron", "Refrigerator", "Cookware / casserole", "Induction cooker", "Blender", "Mixer grinder", "Water filter / purifier", "Electric kettle")))
+        assertEquals(true, catalog.suggestionsFor("Electronics & home appliances").brands.isNotEmpty())
+        assertEquals(true, catalog.suggestionsFor("General store").brands.isEmpty())
+        assertEquals(true, catalog.suggestionsFor("electronics_home_appliances").categories.isNotEmpty())
+    }
+
+    @Test
     fun successfulCheckoutRecordsSaleAndDeductsStockAtomically() = runBlocking {
         seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 5)
 
