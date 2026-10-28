@@ -583,7 +583,7 @@ private fun parsePoisha(value: String): Long? {
         2 -> parts[1].toLongOrNull() ?: return null
         else -> return null
     }
-    return taka * 100 + poisha
+    return try { Math.addExact(Math.multiplyExact(taka, 100L), poisha) } catch (_: ArithmeticException) { null }
 }
 
 private fun formatBdt(poisha: Long): String =
