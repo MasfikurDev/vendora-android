@@ -1,12 +1,38 @@
-name: Android CI and Automatic Beta Release
+name: Android CI and Release Builds
 
 on:
   push:
     branches:
       - '**'
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'gradlew'
+      - 'gradle.properties'
+      - 'settings.gradle*'
+      - 'build.gradle*'
+      - '.github/workflows/android.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'gradlew'
+      - 'gradle.properties'
+      - 'settings.gradle*'
+      - 'build.gradle*'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish this successful build as a GitHub prerelease'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -17,8 +43,9 @@ concurrency:
 
 jobs:
   verify:
-    name: Build and unit tests
+    name: Build, tests, and release notes
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -42,44 +69,57 @@ jobs:
       - name: Install required Android SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Validate Android library dependencies
-        run: ./gradlew --no-daemon :app:checkDebugAarMetadata
+      - name: Build and run unit tests
+        run: ./gradlew --no-daemon :app:checkDebugAarMetadata assembleDebug testDebugUnitTest
 
-      - name: Build debug APK
-        run: ./gradlew --no-daemon assembleDebug
-
-      - name: Run unit tests
-        run: ./gradlew --no-daemon testDebugUnitTest
-
-      - name: Prepare build verification files
+      - name: Prepare build metadata and automatic testing notes
         shell: bash
+        env:
+          RELEASE_NAME: ${{ github.event.head_commit.message || github.event.pull_request.title || github.workflow }}
         run: |
           set -euo pipefail
           APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
           test -n "$APK"
           sha256sum "$APK" | sed 's#app/build/outputs/apk/debug/##' > SHA256SUMS.txt
+
+          {
+            echo "# Vendora build notes"
+            echo
+            echo "- **Purpose:** ${RELEASE_NAME%%$'\n'*}"
+            echo "- **Branch:** ${GITHUB_REF_NAME}"
+            echo "- **Commit:** ${GITHUB_SHA}"
+            echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
+            echo "- **CI validation:** dependency metadata, debug APK build, and JVM unit tests passed."
+            echo "- **APK:** app-debug.apk (debug/preview build; not production-signed)"
+            echo
+            echo "## Changes in this commit"
+            git log -1 --pretty=format:'- %s%n' "$GITHUB_SHA"
+            echo
+            echo "## Files changed in this commit"
+            git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | sed 's/^/- /' || true
+            echo
+            echo "## Phone testing checklist"
+            echo "- Install the APK on a test device; do not use preview builds as the only record for real business data."
+            echo "- Verify the feature named in the commit and check for regressions in shop switching, product persistence, and sales/stock updates where applicable."
+            echo "- CI success confirms build and unit tests only; it does not replace physical-device testing."
+          } > RELEASE-NOTES.md
+
           {
             echo "Product: Vendora"
             echo "Version name: 0.1.0"
             echo "Version code: 1"
-            if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-              echo "Release tag: v0.1.0-beta.${{ github.run_number }}"
-            else
-              SAFE_BRANCH="$(echo "${GITHUB_REF_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9.-]/-/g')"
-              echo "Release tag: v0.1.0-${SAFE_BRANCH}.${{ github.run_number }}"
-            fi
-            echo "Branch: ${{ github.ref_name }}"
-            echo "Build type: debug (unsigned; preview build)"
-            echo "Commit: ${{ github.sha }}"
-            echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "Branch: ${GITHUB_REF_NAME}"
+            echo "Build type: debug (unsigned preview)"
+            echo "Commit: ${GITHUB_SHA}"
+            echo "Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "Minimum Android SDK: 26 (Android 8.0)"
             echo "Target Android SDK: 36"
             echo "Java: 17"
-            echo "Validation: assembleDebug and testDebugUnitTest passed"
+            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest passed"
             echo "APK filename: app-debug.apk"
           } > BUILD-INFO.txt
 
-      - name: Upload APK as workflow artifact
+      - name: Upload APK and notes as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: vendora-build-${{ github.run_number }}-${{ github.run_attempt }}
@@ -87,67 +127,43 @@ jobs:
             app/build/outputs/apk/debug/*.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
+            RELEASE-NOTES.md
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish feature build as a GitHub prerelease
-        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+      # Publish only when explicitly requested, or when a feature commit is marked [phone-test].
+      # Ordinary feature commits still receive CI + a downloadable workflow artifact, not a Release.
+      - name: Publish requested feature preview
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main' || github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-${{ github.ref_name }}.${{ github.run_number }}
-          name: Vendora Feature Build — ${{ github.ref_name }} #${{ github.run_number }}
-          body: |
-            ## Vendora feature preview
-
-            This prerelease was built from feature branch `${{ github.ref_name }}` at commit `${{ github.sha }}`.
-
-            - Includes an installable debug APK, SHA-256 checksum, and build metadata.
-            - Created only after the Android build and unit tests pass.
-            - Intended for feature review; not a stable/public beta release.
-            - Debug build, not a signed production build. Features may be incomplete and data may be lost.
+          tag_name: v0.1.0-preview-${{ github.run_number }}
+          name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
+          body_path: RELEASE-NOTES.md
           files: |
             app/build/outputs/apk/debug/app-debug.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
+            RELEASE-NOTES.md
           fail_on_unmatched_files: true
           draft: false
           prerelease: true
           generate_release_notes: true
 
-      - name: Create a new beta release for this successful main build
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # Main beta Releases are not created on every push. Use workflow_dispatch with
+      # publish_release=true on main when the merged feature is ready for a beta build.
+      - name: Publish requested main beta
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-beta.${{ github.run_number }}
+          tag_name: v0.1.0-beta-${{ github.run_number }}
           name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
-          body: |
-            ## Vendora Beta 0.1.0
-
-            An automatically generated preview of Vendora, an offline-first Android shop-management app for small retail businesses.
-
-            ## What's included
-            - `app-debug.apk`: installable debug APK for compatible Android devices.
-            - `SHA256SUMS.txt`: SHA-256 checksum for verifying the APK download.
-            - `BUILD-INFO.txt`: exact source commit, workflow run, Android SDK compatibility, version metadata, and validation results.
-            - Source archives: GitHub provides source ZIP and tarball links for this release tag.
-
-            ## Installation
-            1. Download `app-debug.apk` from the assets below.
-            2. Optionally verify it against `SHA256SUMS.txt` using a SHA-256 utility.
-            3. Open the APK on an Android device with Android 8.0 (API 26) or newer and follow Android's installation prompts. You may need to allow installs from the file manager or browser used to open it.
-
-            ## Validation
-            The release is published only after `assembleDebug` and `testDebugUnitTest` pass on GitHub Actions. This does not mean every app workflow has been functionally tested on a physical device.
-
-            ## Important limitations
-            - This is a debug build, not a signed production release.
-            - Features are under active development; shop management and other workflows may be incomplete.
-            - Bugs, data-loss risks, and breaking changes are possible. Do not use this preview as the sole record for a real business.
-            - No production signing, Play Store distribution, or reproducible-build claim is made.
+          body_path: RELEASE-NOTES.md
           files: |
             app/build/outputs/apk/debug/app-debug.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
+            RELEASE-NOTES.md
           fail_on_unmatched_files: true
           draft: false
           prerelease: true
