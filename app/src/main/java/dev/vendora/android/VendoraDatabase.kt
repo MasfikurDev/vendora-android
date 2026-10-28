@@ -9,11 +9,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
+import androidx.room.Update
 
-/**
- * Room schema for Vendora's offline-first local database.
- * Legacy SharedPreferences data is imported before the app switches to Room-backed stores.
- */
 @Entity(tableName = "shops")
 data class ShopEntity(
     @PrimaryKey val id: String,
@@ -99,6 +96,9 @@ interface VendoraDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProduct(product: ProductEntity)
+
+    @Update
+    suspend fun updateProduct(product: ProductEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun importProducts(products: List<ProductEntity>)
