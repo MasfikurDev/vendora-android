@@ -42,6 +42,11 @@ android {
     }
 
     buildTypes {
+        // Use the same persistent keystore for debug and release artifacts.
+        // This keeps successive phone-test APKs installable as updates.
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("release")
+        }
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
         }
