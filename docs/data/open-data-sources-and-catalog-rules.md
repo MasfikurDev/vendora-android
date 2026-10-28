@@ -61,3 +61,22 @@ The current Room schema still stores the selected English label in `ShopEntity.b
 - Add a CSV import preview with source/field mapping, duplicate handling, validation, and a rollback-safe import transaction.
 - Add configurable expiry/batch tracking only for shops that enable it, with test coverage and clear audit history.
 - Add a documented data-quality test set for catalog uniqueness, aliases, stable IDs, barcode formatting, unit consistency, and backward compatibility.
+
+
+## Catalog governance and release checklist
+
+Treat every external dataset or taxonomy as a versioned dependency, even when it is bundled as a small JSON file.
+
+Before adding or changing catalog content:
+
+1. **Identify the exact source material.** Record the canonical source URL, the page or dataset name, the version/date retrieved, and which fields were copied, transformed, or authored by Vendora.
+2. **Confirm the license for that exact material.** A public webpage, a public API, and a downloadable database can have different terms. Record attribution, share-alike, notice, and redistribution requirements before merging.
+3. **Separate source values from Vendora-authored content.** Label translations, aliases, display names, and normalization rules as authored/adapted where applicable; do not imply that a government body or data provider approved them.
+4. **Preserve provenance with records.** If remote product lookup is introduced, keep the source name, source identifier, retrieval timestamp, and user verification status alongside imported fields where practical.
+5. **Validate the artifact.** Check JSON/schema validity, unique stable IDs, localized labels, alias collisions, and expected fallback behavior in automated tests.
+6. **Review distribution impact.** Update `THIRD_PARTY_NOTICES.md`, this guide, and any in-app attribution surface required by the source's terms.
+7. **Avoid false assurance.** Catalog presence is not a legal classification, product-authenticity guarantee, or regulatory approval.
+
+### Current catalog boundary
+
+The bundled shop-type catalog is a lightweight onboarding taxonomy with English/Bengali labels and reference tags. It is not an extract of the full OpenStreetMap database, a full BBS BSIC table, a customs tariff database, or a product database. Because the catalog references OSM tagging vocabulary, keep the source provenance and re-evaluate the exact material and license obligations before materially expanding or redistributing it. This documentation is a compliance aid, not legal advice.
