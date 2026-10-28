@@ -46,7 +46,7 @@ This is a durable handoff for coding agents working on Vendora. It records obser
 
 **Problem:** The README and status docs lagged behind the Room implementation on main.
 
-**Handling:** Current source includes Room entities/DAO/repository, sale snapshots, stock movements, and a one-time legacy SharedPreferences/JSON importer. Room schema is version 1; do not imply migration tests or forward schema migrations are complete. Keep original legacy data preserved when import validation fails.
+**Handling:** The active feature stack includes Room entities/DAO/repository, sale snapshots, stock movements, and a one-time legacy SharedPreferences/JSON importer. Schema version is branch-dependent: the reusable-product-details branch adds v1→v2 migration. Always inspect the exact target ref before reporting the schema version; do not imply migration runtime tests passed unless observed. Keep original legacy data preserved when import validation fails.
 
 ### CI status and release publishing are different concerns
 
@@ -64,7 +64,7 @@ This is a durable handoff for coding agents working on Vendora. It records obser
 
 **Problem:** A shop selector alone does not prove products and future transactions are isolated between shops.
 
-**Handling:** Add tests for shop-scoped CRUD, duplicate SKU behavior within one shop, allowed duplicate SKUs across different shops if that is the chosen rule, malformed persisted JSON, and invalid/missing active-shop references. Revisit these tests when storage migrates to Room.
+**Handling:** Add tests for shop-scoped CRUD, duplicate SKU behavior within one shop, allowed duplicate SKUs across different shops if that is the chosen rule, malformed persisted JSON, and invalid/missing active-shop references. Keep these tests in place with Room and extend them for DAO/transaction behavior, migration paths, and runtime execution.
 
 ## Merge automation policy (Vendora only)\n\n- The repository owner requested automatic merging for new Vendora PRs only. Do not generalize this preference to other repositories.\n- Prefer GitHub auto-merge so required checks and repository rules remain authoritative; do not immediately merge around pending checks.\n- Before enabling auto-merge, verify the current PR head SHA, required checks, draft state, mergeability, and any blocking reviews.\n- If repository settings do not permit auto-merge or no required checks are enforced, disclose that limitation instead of implying a persistent repository-wide automation has been configured.\n- This agent instruction documents the desired workflow; it does not itself change GitHub repository settings or guarantee background monitoring.\n\n## Troubleshooting protocol
 
@@ -110,3 +110,14 @@ This log currently records repository-specific lessons confirmed from Vendora's 
 - Added instrumentation cases for successful multi-item checkout, insufficient-stock rollback with no partial sale/stock writes, and cross-shop product access rejection on `fix/checkout-integrity-prerelease`.
 - CI should compile Android instrumentation test Kotlin sources without requiring an emulator. This is compilation coverage only; run the tests on a device/emulator before claiming runtime verification.
 - Documentation was refreshed because main already contained Room and checkout behavior while the previous README/status text still described the pre-Room state.
+
+
+## Open-source documentation refresh — 2026-10-28
+
+- Expanded the README into a project entry point covering purpose, current preview status, build/test commands, verification boundaries, data principles, release caveats, and a documentation map.
+- Expanded contributor guidance with stacked-PR dependency handling, migration/data-integrity expectations, test evidence requirements, and third-party license review.
+- Added community entry points: Code of Conduct, Support, changelog, documentation index, and issue templates. These describe current capabilities only; they do not promise response-time SLAs or production support.
+- Updated security reporting guidance and added a third-party data/source provenance requirement to agent guidance.
+- Rewrote the current status snapshot to distinguish `main` from open stacked PRs #30 → #31 → #32. Historical contradictory entries remain under dated transition history for traceability.
+- Source basis: GitHub's repository best-practice and healthy-contribution guidance recommends a clear README, license, contribution guide, code of conduct, and security/community entry points. See https://docs.github.com/en/repositories/creating-and-managing-repositories/best-practices-for-repositories and https://docs.github.com/en/communities/setting-up-your-project-for-healthy-contributions.
+- No build or tests were run for this documentation-only change. Validate Markdown links and YAML templates, then inspect CI for the exact PR head.
