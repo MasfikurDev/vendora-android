@@ -1,5 +1,6 @@
 package dev.vendora.android
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -34,11 +35,11 @@ data class ProductEntity(
     val quantity: Int,
     val purchasePricePoisha: Long,
     val sellingPricePoisha: Long,
-    val brand: String = "",
-    val category: String = "",
-    val unit: String = "pcs",
-    val barcode: String = "",
-    val lowStockThreshold: Int = 5,
+    @ColumnInfo(defaultValue = "''") val brand: String = "",
+    @ColumnInfo(defaultValue = "''") val category: String = "",
+    @ColumnInfo(defaultValue = "'pcs'") val unit: String = "pcs",
+    @ColumnInfo(defaultValue = "''") val barcode: String = "",
+    @ColumnInfo(defaultValue = "5") val lowStockThreshold: Int = 5,
 )
 
 @Entity(
