@@ -48,10 +48,15 @@ def find_node(needle, exact=False, timeout=20):
                     matches.append((node, bounds, values))
         if matches:
             # Prefer the exact label, then the smallest matching target.
+            def target_area(item):
+                left_top, right_bottom = item[1][1:-1].split("][")
+                left, top = map(int, left_top.split(","))
+                right, bottom = map(int, right_bottom.split(","))
+                return max(0, right - left) * max(0, bottom - top)
+
             matches.sort(key=lambda item: (
                 0 if any(v.casefold() == needle for v in item[2]) else 1,
-                (int(item[1].split("][")[1].split(",")[0]) - int(item[1].split(",")[0][1:]))
-                * (int(item[1].split("][")[1].split(",")[1][:-1]) - int(item[1].split(",")[1].split("]")[0])),
+                target_area(item),
             ))
             return matches[0]
         last = [n.attrib for n in root.iter("node") if n.attrib.get("text") or n.attrib.get("content-desc")]
