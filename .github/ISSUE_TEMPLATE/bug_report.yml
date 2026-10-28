@@ -1,0 +1,65 @@
+name: Bug report
+description: Report a reproducible defect in Vendora
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include passwords, API keys, signing material, real shop/customer data, or exploitable security details. Use the private reporting route in SECURITY.md for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: App version or commit SHA
+      description: Include the release tag or exact commit if known.
+      placeholder: v0.1.0-preview-... or commit SHA
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device and Android version
+      description: Include this when the issue depends on device or OS behavior.
+      placeholder: Device model, Android version
+    validations:
+      required: false
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open...
+        2. Select...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or screenshots
+      description: Redact secrets and personal/business data before sharing.
+    validations:
+      required: false
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched for an existing report.
+          required: true
+        - label: I removed secrets and private shop/customer data.
+          required: true
