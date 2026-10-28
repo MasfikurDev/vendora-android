@@ -25,6 +25,14 @@ This document is the status ledger for the repository. Update it when implementa
 - These instrumentation tests require compilation and device/emulator execution before their behavior can be considered verified. Do not treat test source alone as a passing test result.
 - Current prerelease artifacts are debug/preview APKs, not production-signed builds.
 
+### Active reusable-product-details change
+
+- Branch: `feat/reusable-product-details`, based on the checkout-integrity branch head `702c9ce30872901a3bdbb11510ac0929001ad867`.
+- Adds brand, category, unit, barcode, and configurable low-stock threshold fields to products.
+- Adds shop-scoped reusable brand/category/unit options in Room, retained when the product that introduced them is deleted.
+- Adds explicit Room v1→v2 migration and updates the legacy JSON importer to accept optional metadata.
+- Adds instrumentation coverage for saved-option reuse. CI compilation and the migration behavior must still be checked against the actual PR run; instrumentation tests are not executed on an emulator in current CI.
+- Product barcode entry is implemented; camera scanning is not included. Further roadmap items are recorded in [Reusable product details](product/reusable-product-details.md).
 
 ### Implemented in the repository
 
