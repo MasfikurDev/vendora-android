@@ -29,6 +29,7 @@ The current foundation is Kotlin, Jetpack Compose, Material 3, and Room over SQL
 ## Contents
 
 - [Product direction](#product-direction)
+- [Mobile UI design](#mobile-ui-design)
 - [Current implementation](#current-implementation)
 - [Architecture at a glance](#architecture-at-a-glance)
 - [Data integrity principles](#data-integrity-principles)
@@ -55,6 +56,16 @@ Vendora's intended navigation is organized around five clear destinations:
 This table describes the **product direction**, not a claim that every screen or workflow is already implemented. The current app remains in an early implementation phase.
 
 The product is intended to support different retail business types while keeping common workflows consistent. Reusable brands, categories, units, barcodes, and low-stock thresholds should reduce repeated data entry without forcing every shop into one rigid template.
+
+## Mobile UI design
+
+The editable Figma source for the first mobile UI direction includes Home, Sell / Checkout, Products / Inventory, and visual foundations:
+
+**[Open the Vendora mobile UI design in Figma](https://www.figma.com/design/paHXNhjxyBfhnHjHhkYrKB)**
+
+The native Android implementation uses Jetpack Compose and Material 3; Figma is the visual specification, not a runtime dependency. Design-only sample figures are illustrative and must never be presented as live business data. Current screens should use values derived from Room/repository data, and checkout must continue to deduct stock only after a successful transaction.
+
+See [Mobile UI specification](docs/design/mobile-ui-spec.md) for colors, interaction rules, and implementation boundaries.
 
 ## Current implementation
 
