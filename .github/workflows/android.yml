@@ -13,7 +13,8 @@ on:
       - 'gradle.properties'
       - 'settings.gradle*'
       - 'build.gradle*'
-      - '.github/workflows/android.yml'
+      - '.github/workflows/**'
+      - '.github/dependabot.yml'
   pull_request:
     branches: [main]
     paths:
@@ -25,7 +26,8 @@ on:
       - 'gradle.properties'
       - 'settings.gradle*'
       - 'build.gradle*'
-      - '.github/workflows/android.yml'
+      - '.github/workflows/**'
+      - '.github/dependabot.yml'
   workflow_dispatch:
     inputs:
       publish_release:
@@ -34,23 +36,31 @@ on:
         type: boolean
         default: false
 
+# Verification is read-only. Release publishing gets write access only in its own job.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: android-ci-${{ github.workflow }}-${{ github.ref }}
+  group: android-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
-    name: Build, tests, and release notes
+    # PR checks are the normal feature-branch validation path. Avoid duplicate push builds
+    # for ordinary feature commits; use workflow_dispatch for an on-demand preview.
+    # A [phone-test] feature push intentionally builds and publishes a preview.
+    if: >-
+      github.event_name != 'push' ||
+      github.ref == 'refs/heads/main' ||
+      contains(github.event.head_commit.message, '[phone-test]')
+    name: Build, tests, and lint
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -61,16 +71,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Set up Android SDK tools
+      - name: Set up Android SDK and required packages
         uses: android-actions/setup-android@v3
         with:
-          packages: ''
+          packages: |
+            platform-tools
+            platforms;android-36
+            build-tools;36.0.0
 
-      - name: Install required Android SDK packages
-        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Build and run unit tests
-        run: ./gradlew --no-daemon :app:checkDebugAarMetadata assembleDebug testDebugUnitTest
+      - name: Build, test, and lint
+        run: ./gradlew --no-daemon --build-cache :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
       - name: Prepare build metadata and automatic testing notes
         shell: bash
@@ -80,7 +90,8 @@ jobs:
           set -euo pipefail
           APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
           test -n "$APK"
-          sha256sum "$APK" | sed 's#app/build/outputs/apk/debug/##' > SHA256SUMS.txt
+          cp "$APK" app-debug.apk
+          sha256sum app-debug.apk > SHA256SUMS.txt
 
           {
             echo "# Vendora build notes"
@@ -89,7 +100,7 @@ jobs:
             echo "- **Branch:** ${GITHUB_REF_NAME}"
             echo "- **Commit:** ${GITHUB_SHA}"
             echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
-            echo "- **CI validation:** dependency metadata, debug APK build, and JVM unit tests passed."
+            echo "- **CI validation:** debug APK build, JVM unit tests, and Android Lint passed."
             echo "- **APK:** app-debug.apk (debug/preview build; not production-signed)"
             echo
             echo "## Changes in this commit"
@@ -100,8 +111,8 @@ jobs:
             echo
             echo "## Phone testing checklist"
             echo "- Install the APK on a test device; do not use preview builds as the only record for real business data."
-            echo "- Verify the feature named in the commit and check for regressions in shop switching, product persistence, and sales/stock updates where applicable."
-            echo "- CI success confirms build and unit tests only; it does not replace physical-device testing."
+            echo "- Verify the feature named in the commit and check shop switching, product persistence, and sales/stock updates where applicable."
+            echo "- CI success confirms build, JVM tests, and lint only; it does not replace physical-device testing."
           } > RELEASE-NOTES.md
 
           {
@@ -115,55 +126,51 @@ jobs:
             echo "Minimum Android SDK: 26 (Android 8.0)"
             echo "Target Android SDK: 36"
             echo "Java: 17"
-            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest passed"
+            echo "Validation: assembleDebug, testDebugUnitTest, lintDebug passed"
             echo "APK filename: app-debug.apk"
           } > BUILD-INFO.txt
 
       - name: Upload APK and notes as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vendora-build-${{ github.run_number }}-${{ github.run_attempt }}
+          name: vendora-build-${{ github.sha }}
           path: |
-            app/build/outputs/apk/debug/*.apk
+            app-debug.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
             RELEASE-NOTES.md
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
-      # Publish only when explicitly requested, or when a feature commit is marked [phone-test].
-      # Ordinary feature commits still receive CI + a downloadable workflow artifact, not a Release.
-      - name: Publish requested feature preview
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main' || github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]')
+  publish-preview:
+    name: Publish requested preview
+    needs: verify
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.publish_release == true) ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[phone-test]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download verified build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vendora-build-${{ github.sha }}
+          path: artifacts
+
+      - name: Publish debug preview release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-preview-${{ github.run_number }}
-          name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
-          body_path: RELEASE-NOTES.md
+          tag_name: ${{ github.ref == 'refs/heads/main' && format('v0.1.0-beta-{0}', github.run_number) || format('v0.1.0-preview-{0}', github.run_number) }}
+          name: ${{ github.ref == 'refs/heads/main' && format('Vendora Beta 0.1.0 — Build {0}', github.run_number) || format('Vendora Phone Test — {0} #{1}', github.ref_name, github.run_number) }}
+          body_path: artifacts/RELEASE-NOTES.md
           files: |
-            app/build/outputs/apk/debug/app-debug.apk
-            SHA256SUMS.txt
-            BUILD-INFO.txt
-            RELEASE-NOTES.md
-          fail_on_unmatched_files: true
-          draft: false
-          prerelease: true
-          generate_release_notes: true
-
-      # Main beta Releases are not created on every push. Use workflow_dispatch with
-      # publish_release=true on main when the merged feature is ready for a beta build.
-      - name: Publish requested main beta
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.1.0-beta-${{ github.run_number }}
-          name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
-          body_path: RELEASE-NOTES.md
-          files: |
-            app/build/outputs/apk/debug/app-debug.apk
-            SHA256SUMS.txt
-            BUILD-INFO.txt
-            RELEASE-NOTES.md
+            artifacts/app-debug.apk
+            artifacts/SHA256SUMS.txt
+            artifacts/BUILD-INFO.txt
+            artifacts/RELEASE-NOTES.md
           fail_on_unmatched_files: true
           draft: false
           prerelease: true
