@@ -54,3 +54,13 @@ These instructions apply to the whole repository unless a closer `AGENTS.md` ove
 - Feature branches may publish branch-specific GitHub prereleases after a successful **push-triggered** build and unit-test run. Pull-request-triggered runs validate the change but should not publish releases.
 - A successful push to `main` uses the separate beta-release path. Feature previews and beta builds are debug APKs, not signed production releases.
 - When changing workflow behavior, update README/status/worklog documentation in the same branch. Record exact commit SHA and CI run links; never infer a published release from workflow configuration alone.
+
+
+## Documentation and open-source hygiene
+
+- Treat README, CONTRIBUTING, SECURITY, SUPPORT, CODE_OF_CONDUCT, CHANGELOG, THIRD_PARTY_NOTICES, and the docs index as maintained project interfaces, not boilerplate.
+- Keep the README concise enough to onboard users; place detailed architecture, data provenance, roadmap, and history in linked docs.
+- Do not claim that features are merged, releases exist, CI is green, or tests executed without checking the exact branch/SHA and evidence.
+- When adding or copying third-party code, data, images, schemas, or documentation, record the exact source and applicable license in `THIRD_PARTY_NOTICES.md`; do not assume a source is reusable merely because it is publicly viewable.
+- Update the open-data source guide when the catalog, source, license, or import behavior changes. Preserve source attribution and distinguish Vendora-authored labels from source-derived values.
+- Keep issue templates and pull-request checklists focused on information maintainers actually need; do not create policies that imply response SLAs or capabilities the project does not provide.
