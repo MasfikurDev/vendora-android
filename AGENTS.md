@@ -51,6 +51,8 @@ These instructions apply to the whole repository unless a closer `AGENTS.md` ove
 
 ## Feature builds and release documentation
 
-- Feature branches may publish branch-specific GitHub prereleases after a successful **push-triggered** build and unit-test run. Pull-request-triggered runs validate the change but should not publish releases.
-- A successful push to `main` uses the separate beta-release path. Feature previews and beta builds are debug APKs, not signed production releases.
+- Relevant pushes to `main` and pull requests targeting `main` run verification. Feature branches are built through manual workflow dispatch; feature pushes do not automatically publish releases.
+- Leave `publish_release` disabled for an artifact-only build. Enable it only when a GitHub prerelease is intentionally requested. Main beta and feature preview publishing are separate jobs with write permissions isolated from verification.
+- Routine CI runs build/JVM tests and compiles instrumentation-test sources without an emulator. Emulator-backed instrumentation is opt-in (`run_instrumentation=true`) and disabled by default. A skipped step is not a passing test.
+- Keep CI efficient: use the Gradle cache and shallow checkout; avoid duplicate feature-push builds and routine emulator startup.
 - When changing workflow behavior, update README/status/worklog documentation in the same branch. Record exact commit SHA and CI run links; never infer a published release from workflow configuration alone.

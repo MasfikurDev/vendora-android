@@ -2,7 +2,7 @@
 
 Offline-first Android shop management for owners who operate one or more businesses.
 
-> **Current status (2026-10-24):** Early implementation, not production-ready. The app has a Kotlin + Jetpack Compose shell, local shop creation/switching, and shop-scoped product storage implemented on the active feature branch. Product storage currently uses JSON in SharedPreferences; Room/SQLite migration, a complete inventory UI, and end-to-end business workflows are still outstanding. Check [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the authoritative snapshot and history.
+> **Status (2026-10-28):** Active early implementation; not production-ready. The Android app uses Kotlin, Jetpack Compose, Material 3, Room/SQLite, a repository layer, shop-scoped product operations, stock movement records, and an atomic checkout path. The core business flows and data recovery behavior still need broader automated and device testing.
 
 ## Product goals
 
@@ -11,19 +11,25 @@ Offline-first Android shop management for owners who operate one or more busines
 - Track products, purchases, stock movements, sales, returns, expenses, and reports.
 - Keep financial calculations deterministic and auditable.
 - Support configurable retail business types without forcing every business into the same workflow.
-- Make AI optional; ordinary business operations must never depend on an AI service.
+- Keep AI optional; ordinary business operations must never depend on an AI service.
 
 ## Technology baseline
 
 - Kotlin, Jetpack Compose, Material 3
 - Android Gradle Plugin and Kotlin versions in `gradle/libs.versions.toml`
 - JDK 17, Android SDK 36
-- GitHub Actions: debug APK build and JVM unit tests
-- **Current persistence:** SharedPreferences + JSON for shops and products
-- **Target persistence:** Room/SQLite with explicit migrations, introduced as a focused migration
-- Coroutines/Flow, repository boundaries, and lifecycle-aware state as implementation evolves
+- Room/SQLite with DAO/repository access and legacy JSON import
+- GitHub Actions: debug APK, JVM tests, instrumentation-test source compilation, APK signature verification, and persistent signing-certificate verification when secrets are available. Emulator-backed instrumentation execution is opt-in.
 
-Do not describe planned technologies as already implemented. Keep the app small and add architecture only when a feature needs it.
+## Current limitations
+
+- The app is an early implementation and is not suitable as the only store of real business records.
+- Room migration/import recovery and historical-data compatibility need continued validation.
+- The sale and stock transaction path has targeted instrumentation regression tests; more coverage is needed for returns, adjustments, backup/restore, and schema upgrades.
+- Product deletion is currently a hard delete; define and implement an archive/ledger-retention policy before relying on history for formal auditing.
+- The database currently has no foreign-key constraints or database-enforced case-insensitive per-shop SKU uniqueness. Repository validation is not a substitute for all persistence-level invariants.
+- A successful CI run does not prove update installation on every physical Android device. Compare the installed app's signing certificate when diagnosing update failures.
+- Production signing, backup/restore, privacy/security review, and a full release process remain outstanding.
 
 ## Product scope
 
@@ -44,44 +50,43 @@ Staff permissions, multi-device sync, cloud services, forecasting, and specializ
 - Use transactions for operations that update a sale and stock together.
 - Snapshot relevant prices and costs on transaction lines so historical reports remain meaningful.
 - Include shop ownership/scope in relevant data access paths and tests.
-- Use explicit Room migrations and test them when Room is introduced.
+- Use explicit, tested Room migrations; never add destructive migration fallbacks for real user data.
 - Never commit credentials, signing keys, private API keys, or real customer data.
 - AI output is untrusted input. Validate tool arguments and permissions, and calculate financial results in application code.
 
 ## Build and test
 
-Requirements: JDK 17, Android SDK platform 36/build-tools 36.0.0, and the committed Gradle wrapper (Gradle 8.13).
+Requirements: JDK 17, Android SDK platform 36/build-tools 36.0.0, and the committed Gradle wrapper.
 
 **Windows PowerShell**
 ```powershell
 .\gradlew.bat assembleDebug
 .\gradlew.bat testDebugUnitTest
+.\gradlew.bat connectedDebugAndroidTest
 ```
 
 **Linux / macOS**
 ```shell
 ./gradlew assembleDebug
 ./gradlew testDebugUnitTest
+./gradlew connectedDebugAndroidTest
 ```
 
-CI builds a debug APK and runs JVM unit tests. Instrumentation tests are present in the scaffold but are not currently run by CI. A passing CI run proves the configured build/tests pass; it does not prove the app is production-ready.
+The first two commands do not require an emulator; `connectedDebugAndroidTest` requires a connected Android device or emulator. Routine CI compiles instrumentation-test sources but does not start an emulator. To run the full Android instrumentation suite, manually dispatch **Android CI and Release Builds** with `run_instrumentation=true`. Check the exact workflow run and tested commit SHA before describing a build as verified.
 
-## Git and release workflow
+## Git and build workflow
 
-- Keep `main` buildable.
-- Use focused short-lived feature/documentation branches and open pull requests.
-- Pushes to branches run CI; pull requests targeting `main` run checks.
-- Successful pushes to feature branches publish branch-specific GitHub prereleases for review; these are **debug preview APKs**, not stable beta or production releases.
-- Only a successful push to `main` creates the main beta prerelease. These are **debug APK beta builds**, not signed production releases.
-- Production releases require a separately planned, signed release process and explicit version/tag policy.
-- Do not merge pull requests without explicit authorization from the repository owner.
+- Keep `main` buildable and use focused short-lived branches with pull requests.
+- CI runs on relevant pushes to `main`, pull requests targeting `main`, and manual workflow dispatch. Routine feature-branch pushes do not trigger duplicate builds; use manual dispatch for a feature APK.
+- To build a feature branch, open **Actions → Android CI and Release Builds → Run workflow** and select that branch.
+- Leave `publish_release` unchecked for a downloadable artifact. Check it only when a GitHub prerelease is wanted.
+- Same-repository builds require the configured persistent debug signing secrets. Fork PRs use temporary signing and cannot update an app installed with the persistent key.
+- CI compares the APK certificate fingerprint with the configured keystore when persistent signing is enabled. An APK must retain the same application ID and signing certificate, and use a higher version code, to update an existing installation.
+- Debug previews and beta artifacts are not production releases. Do not use them as the only copy of real business data.
+- Do not merge pull requests without the repository's required checks and review safeguards.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), and [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), and [project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
 
 ## License
 
-A license has not yet been selected. Do not assume this project is open source merely because the repository is public.
-
-## Feature preview releases
-
-Each successful feature-branch push is intended to publish a branch-specific GitHub prerelease after `assembleDebug` and `testDebugUnitTest` pass. The workflow run must be checked before claiming a release exists. Feature previews are temporary review builds; only `main` publishes the project beta channel.
+A license has not been selected. Do not assume this project is open source merely because the repository is public.
