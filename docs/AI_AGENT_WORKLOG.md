@@ -95,5 +95,5 @@ This log currently records repository-specific lessons confirmed from Vendora's 
 - Normal feature pushes skip duplicate verification work; pull requests targeting `main` are the standard feature-validation path. Main pushes still verify, and workflow dispatch can produce an on-demand build/preview.
 - Reduced workflow artifact retention from 14 to 7 days to limit stale build storage.
 - Added grouped weekly Dependabot updates for Gradle dependencies and GitHub Actions, separating major updates from grouped minor/patch updates.
-- Added pull-request dependency review that blocks newly introduced dependency vulnerabilities rated high or critical; the action's dependency-graph prerequisites and exact CI result still need verification.
+- Initially attempted pull-request dependency review, but the action failed before build verification on the first PR run. Removed it from the blocking workflow to restore reliable build feedback; Dependabot remains configured for scheduled dependency update PRs. Revisit native dependency review only after repository dependency-graph support is confirmed.
 - **Verification boundary:** these configuration changes still require a completed CI run on the PR head. No claim is made that Android Lint, dependency updates, or release publishing passed until GitHub reports the exact run result.
