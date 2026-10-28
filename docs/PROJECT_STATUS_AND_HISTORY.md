@@ -16,7 +16,7 @@ This file records the latest known implementation and keeps historical transitio
 - Repository operations for shop/product persistence, product stock movements, and shop-scoped reads.
 - Checkout runs in a Room transaction, validates cart stock before writing, snapshots selling price and cost, records sale lines, deducts stock, and appends stock movements.
 - GitHub Actions builds a debug APK, runs JVM unit tests, compiles instrumentation-test sources without starting an emulator, verifies the APK signature and persistent signing certificate when secrets are available, and uploads a workflow artifact. Full emulator instrumentation is opt-in on manual dispatch and disabled by default.
-- Run #251 passed the previous PR head `90c7bd5e368e605d064f1461b29de2af8eb90c37`: build, JVM tests, signing checks, and artifact upload succeeded; emulator execution was intentionally skipped. Subsequent workflow optimizations require their own run before they are considered verified.
+- Run #252 passed workflow commit `b19d9aec2c961a88f13e04425c1d0249d6e7feb8`: build, JVM tests, instrumentation-test source compilation, signing checks, and artifact upload succeeded. Emulator execution was intentionally skipped; runtime instrumentation and a physical-device update test remain unverified.
 
 ### Known limitations / risks
 
@@ -57,7 +57,7 @@ The current workflow is `.github/workflows/android.yml`.
 - Added explicit APK signing-certificate fingerprint verification against the configured persistent keystore.
 - Added Android instrumentation regression coverage for atomic checkout, insufficient-stock rollback, and shop-scoped product/SKU validation. After recognizing the runtime cost, emulator execution was changed to an opt-in manual-dispatch input (`run_instrumentation`, default `false`) rather than part of routine CI.
 - Corrected README and status text to describe the current Room implementation and manual feature-branch build trigger instead of the old SharedPreferences-only architecture and automatic feature-push release claims.
-- Verification status at the time of this entry: run #251 passed the prior PR head, with emulator instrumentation skipped by design. The follow-up workflow optimization is a separate change and must be checked against its own run. Physical-device update compatibility remains unverified.
+- Verification: run #252 passed commit `b19d9aec2c961a88f13e04425c1d0249d6e7feb8`, including instrumentation-test source compilation. Emulator instrumentation was skipped by design. Physical-device update compatibility remains unverified.
 
 ### 2026-10-24 — Earlier implementation and workflow notes
 
