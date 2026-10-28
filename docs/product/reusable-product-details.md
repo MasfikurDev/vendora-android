@@ -28,11 +28,11 @@ Checkout now writes a sale header and its product-line snapshots in the same Roo
 
 The current CI workflow compiles instrumentation tests but does not execute them on an emulator/device. Physical-device verification of migration and checkout remains required before treating the new Activity flow as runtime-verified.
 
-## Home-appliance starter suggestions
+## Home-appliance category suggestions
 
-The dependent `feat/home-appliance-catalog` branch adds an offline, editable starter list for shops labeled Electronics or Home Appliances. It suggests VISION, KIAM, Prestige, RFL, Hawkins, Minister, VIGO, Jaipan, and Jamuna, plus categories for rice cookers, electric irons, refrigerators, cookware/casseroles, induction cookers, blenders, mixer grinders, water filters/purifiers, and electric kettles.
+The dependent `feat/home-appliance-catalog` branch adds generic offline categories for shops labeled Electronics or Home Appliances. Suggestions cover rice cookers, electric irons, refrigerators, cookware/casseroles, induction cookers, blenders, mixer grinders, water filters/purifiers, and electric kettles. No real-world business or brand names are bundled; brand values remain user-entered.
 
-These suggestions are not proof of current stock, authenticity, model compatibility, warranty, or price. They do not create products automatically; product quantities and purchase/selling prices must be entered by the shop owner.
+
 ## Next useful additions (not implemented)
 
 1. Product images, with local/offline storage and explicit backup behavior.
