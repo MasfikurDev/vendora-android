@@ -76,7 +76,7 @@ CI builds a debug APK, runs JVM unit tests, and compiles Android instrumentation
 - Production releases require a separately planned, signed release process and explicit version/tag policy.
 - Use GitHub auto-merge for agent-created PRs only when the repository policy permits it and the exact PR head checks pass.
 
-See [Reusable product details and roadmap](docs/product/reusable-product-details.md), [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), and [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
+See [Reusable product details and roadmap](docs/product/reusable-product-details.md), [Open data sources and catalog rules](docs/data/open-data-sources-and-catalog-rules.md), [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), and [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
 
 ## License
 
