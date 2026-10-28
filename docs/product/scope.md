@@ -1,7 +1,7 @@
 # Vendora Product Scope
 
 ## Target
-A mobile-first Android app for owners managing one or more small retail businesses, including grocery, fashion, electronics, hardware, stationery, and general retail. More specialized workflows can be added later without making the common app unnecessarily complex.
+A mobile-first business-management workspace for owners managing one or more small retail businesses, including grocery, fashion, electronics, hardware, stationery, and general retail. It brings selling, products, business activity, and insights together. More specialized workflows can be added later without making the common app unnecessarily complex.
 
 ## Initial release priorities
 1. Owner can create and switch between shops.
