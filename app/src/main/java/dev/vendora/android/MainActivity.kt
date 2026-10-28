@@ -20,10 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-private val VendoraGreen = Color(0xFF236B55)
-private val VendoraBackground = Color(0xFFF5F7F5)
-private val VendoraInk = Color(0xFF17231F)
-private val VendoraMuted = Color(0xFF68766F)
+private val VendoraGreen = Color(0xFF145945)
+private val VendoraBackground = Color(0xFFF6F8F4)
+private val VendoraInk = Color(0xFF172621)
+private val VendoraMuted = Color(0xFF66756E)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
