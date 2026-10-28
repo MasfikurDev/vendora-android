@@ -95,6 +95,33 @@ class VendoraCheckoutInstrumentedTest {
         assertEquals(0, dao.getSaleLines("shop-b").size)
     }
 
+    @Test
+    fun savedBrandCategoryAndUnitRemainReusableAfterProductDeletion() = runBlocking {
+        dao.insertShop(ShopEntity("shop-a", "Shop A", "General"))
+        repository.saveProduct(
+            ProductEntity(
+                id = "product-a",
+                shopId = "shop-a",
+                name = "Rice",
+                sku = "RICE-01",
+                quantity = 0,
+                purchasePricePoisha = 5000L,
+                sellingPricePoisha = 6000L,
+                brand = "Fresh Fields",
+                category = "Grocery",
+                unit = "kg",
+                barcode = "123456789",
+                lowStockThreshold = 8,
+            ),
+        )
+
+        repository.deleteProduct("shop-a", "product-a")
+
+        assertEquals(listOf("Fresh Fields"), repository.getCatalogOptions("shop-a", CatalogOptionKind.BRAND))
+        assertEquals(listOf("Grocery"), repository.getCatalogOptions("shop-a", CatalogOptionKind.CATEGORY))
+        assertEquals(listOf("kg"), repository.getCatalogOptions("shop-a", CatalogOptionKind.UNIT))
+    }
+
     private suspend fun seedShopAndProduct(shopId: String, productId: String, quantity: Int) {
         if (dao.getShops().none { it.id == shopId }) {
             dao.insertShop(ShopEntity(shopId, shopId, "General"))
