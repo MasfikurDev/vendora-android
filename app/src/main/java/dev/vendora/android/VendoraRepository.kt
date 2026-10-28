@@ -201,6 +201,7 @@ class VendoraRepository(
     suspend fun saveProduct(product: ProductEntity, timestampMillis: Long = System.currentTimeMillis()) {
         require(product.shopId.isNotBlank() && product.name.isNotBlank()) { "A shop and product name are required." }
         require(product.quantity >= 0) { "Stock cannot be negative." }
+        require(product.lowStockThreshold >= 0) { "Low-stock threshold cannot be negative." }
         require(product.purchasePricePoisha >= 0L && product.sellingPricePoisha >= 0L) { "Prices cannot be negative." }
         val normalized = product.copy(
             name = product.name.trim(),
