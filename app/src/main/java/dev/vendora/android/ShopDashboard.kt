@@ -1,29 +1,53 @@
 package dev.vendora.android
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
 import java.util.Locale
 
+private val DashboardGreen = Color(0xFF236B55)
+private val DashboardMint = Color(0xFFE4F2EA)
+private val DashboardAmber = Color(0xFFFFF0D8)
+private val DashboardInk = Color(0xFF17231F)
+
+private enum class ShopSection(val label: String) {
+    Overview("Overview"),
+    Products("Products"),
+    Insights("Insights"),
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
     var products by remember(shop.id) { mutableStateOf(productStore.getProducts(shop.id)) }
+    var section by remember { mutableStateOf(ShopSection.Overview) }
     var query by remember { mutableStateOf("") }
     var showEditor by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Product?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var productPendingDelete by remember { mutableStateOf<Product?>(null) }
+
+    val lowStock = products.filter { it.quantity <= 5 }
+    val units = products.sumOf { it.quantity }
+    val stockCost = products.sumOf { it.quantity.toLong() * it.purchasePricePoisha }
+    val potentialSales = products.sumOf { it.quantity.toLong() * it.sellingPricePoisha }
+    val potentialMargin = potentialSales - stockCost
 
     BackHandler(onBack = onBack)
     Scaffold(
@@ -32,82 +56,79 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                 title = {
                     Column {
                         Text(shop.name, fontWeight = FontWeight.Bold)
-                        Text(shop.businessType, style = MaterialTheme.typography.labelMedium)
+                        Text(shop.businessType, style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
                 navigationIcon = { TextButton(onClick = onBack) { Text("Shops") } },
+                actions = {
+                    TextButton(onClick = { section = ShopSection.Products }) { Text("Inventory") }
+                },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { editing = null; error = null; showEditor = true }) {
-                Text("+", style = MaterialTheme.typography.headlineMedium)
+            if (section == ShopSection.Products || products.isEmpty()) {
+                FloatingActionButton(
+                    onClick = { editing = null; error = null; showEditor = true },
+                    containerColor = DashboardGreen,
+                    contentColor = Color.White,
+                ) { Text("+", style = MaterialTheme.typography.headlineMedium) }
+            }
+        },
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                ShopSection.entries.forEach { item ->
+                    NavigationBarItem(
+                        selected = section == item,
+                        onClick = { section = item },
+                        icon = {
+                            Text(
+                                when (item) {
+                                    ShopSection.Overview -> "⌂"
+                                    ShopSection.Products -> "▦"
+                                    ShopSection.Insights -> "↗"
+                                },
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                        },
+                        label = { Text(item.label) },
+                        alwaysShowLabel = true,
+                    )
+                }
             }
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
-            Spacer(Modifier.height(12.dp))
-            Text("Inventory", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("${products.size} products · ${products.sumOf { it.quantity }} units in stock",
-                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(16.dp))
-            OutlinedTextField(
-                value = query, onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Search products") }, singleLine = true,
-                shape = RoundedCornerShape(14.dp),
+        when (section) {
+            ShopSection.Overview -> OverviewContent(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                shopName = shop.name,
+                products = products,
+                units = units,
+                stockCost = stockCost,
+                potentialSales = potentialSales,
+                lowStock = lowStock,
+                onViewInventory = { section = ShopSection.Products },
+                onAddProduct = { editing = null; error = null; showEditor = true },
+                onSelectProduct = { editing = it; error = null; showEditor = true },
             )
-            Spacer(Modifier.height(12.dp))
-            val filteredProducts = products.filter {
-                it.name.contains(query, true) || it.sku.contains(query, true)
-            }
-            if (products.isEmpty()) {
-                Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
-                    Column(Modifier.padding(24.dp)) {
-                        Text("Your inventory starts here", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Add products with stock and prices. Each shop keeps its own catalog.")
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = { editing = null; error = null; showEditor = true }) { Text("Add first product") }
-                    }
-                }
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 88.dp)) {
-                    items(filteredProducts, key = { it.id }) { product ->
-                        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-                            Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(product.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                        if (product.sku.isNotBlank()) Text("SKU: ${product.sku}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Text("Stock ${product.quantity}", style = MaterialTheme.typography.labelLarge)
-                                }
-                                Spacer(Modifier.height(8.dp))
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Buy ${formatBdt(product.purchasePricePoisha)}", style = MaterialTheme.typography.bodyMedium)
-                                    Text("Sell ${formatBdt(product.sellingPricePoisha)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                                }
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                    TextButton(onClick = { editing = product; error = null; showEditor = true }) { Text("Edit") }
-                                    TextButton(onClick = { productPendingDelete = product }) { Text("Delete") }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (products.isNotEmpty() && query.isNotBlank() && products.none {
-            it.name.contains(query, true) || it.sku.contains(query, true)
-        }) {
-        Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-            Column(Modifier.padding(20.dp)) {
-                Text("No matching products", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(4.dp))
-                Text("Try a different product name or SKU.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            ShopSection.Products -> InventoryContent(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                products = products,
+                query = query,
+                onQueryChange = { query = it },
+                onAddProduct = { editing = null; error = null; showEditor = true },
+                onEdit = { editing = it; error = null; showEditor = true },
+                onDelete = { productPendingDelete = it },
+            )
+            ShopSection.Insights -> InsightsContent(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                products = products,
+                units = units,
+                stockCost = stockCost,
+                potentialSales = potentialSales,
+                potentialMargin = potentialMargin,
+                lowStock = lowStock,
+            )
         }
     }
 
@@ -123,9 +144,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                     productPendingDelete = null
                 }) { Text("Delete product") }
             },
-            dismissButton = {
-                TextButton(onClick = { productPendingDelete = null }) { Text("Cancel") }
-            },
+            dismissButton = { TextButton(onClick = { productPendingDelete = null }) { Text("Cancel") } },
         )
     }
 
@@ -136,7 +155,7 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
             onDismiss = { showEditor = false },
             onSave = { name, sku, quantity, purchase, selling ->
                 runCatching {
-                    val p = Product(
+                    val product = Product(
                         id = editing?.id ?: ProductStore.newId(),
                         shopId = shop.id,
                         name = name,
@@ -145,12 +164,248 @@ fun ShopDashboard(shop: Shop, productStore: ProductStore, onBack: () -> Unit) {
                         purchasePricePoisha = purchase,
                         sellingPricePoisha = selling,
                     )
-                    productStore.saveProduct(p)
+                    productStore.saveProduct(product)
                     products = productStore.getProducts(shop.id)
                     showEditor = false
                 }.onFailure { error = it.message ?: "Could not save product." }
             },
         )
+    }
+}
+
+@Composable
+private fun OverviewContent(
+    modifier: Modifier,
+    shopName: String,
+    products: List<Product>,
+    units: Int,
+    stockCost: Long,
+    potentialSales: Long,
+    lowStock: List<Product>,
+    onViewInventory: () -> Unit,
+    onAddProduct: () -> Unit,
+    onSelectProduct: (Product) -> Unit,
+) {
+    Column(
+        modifier.verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Business overview", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text("A clear view of $shopName at a glance.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = DashboardGreen),
+        ) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(42.dp).background(Color.White.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
+                        Text("V", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(shopName, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("SHOP WORKSPACE", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall)
+                    }
+                    Surface(color = Color.White.copy(alpha = 0.16f), shape = RoundedCornerShape(100.dp)) {
+                        Text("Offline ready", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                HorizontalDivider(color = Color.White.copy(alpha = 0.22f))
+                Text("Inventory cost value", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodyMedium)
+                Text(formatBdt(stockCost), color = Color.White, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Text("Based on current stock and purchase prices", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall)
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricCard("Products", products.size.toString(), "In your catalog", Modifier.weight(1f), DashboardMint)
+            MetricCard("Units in stock", units.toString(), "Across all products", Modifier.weight(1f), Color(0xFFEAF0FB))
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("Stock attention", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Products with 5 or fewer units", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            TextButton(onClick = onViewInventory) { Text("View all") }
+        }
+
+        if (lowStock.isEmpty()) {
+            Surface(shape = RoundedCornerShape(18.dp), color = DashboardMint) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("✓", color = DashboardGreen, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("No low-stock alerts", fontWeight = FontWeight.SemiBold)
+                        Text("Products with low quantities will appear here.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+        } else {
+            lowStock.take(4).forEach { product ->
+                Card(onClick = { onSelectProduct(product) }, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = DashboardAmber)) {
+                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(product.name, fontWeight = FontWeight.SemiBold)
+                            Text("Restock soon", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text("${product.quantity} left", color = Color(0xFF8A5700), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(onClick = onAddProduct, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp)) {
+                Text("+  Add product")
+            }
+            OutlinedButton(onClick = onViewInventory, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp)) {
+                Text("Open inventory")
+            }
+        }
+
+        Text("Potential sales value: ${formatBdt(potentialSales)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun InventoryContent(
+    modifier: Modifier,
+    products: List<Product>,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onAddProduct: () -> Unit,
+    onEdit: (Product) -> Unit,
+    onDelete: (Product) -> Unit,
+) {
+    val filteredProducts = products.filter { it.name.contains(query, true) || it.sku.contains(query, true) }
+    Column(modifier.padding(horizontal = 16.dp)) {
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Inventory", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("${products.size} products · ${products.sumOf { it.quantity }} units in stock",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            FilledTonalButton(onClick = onAddProduct) { Text("+ Add") }
+        }
+        Spacer(Modifier.height(16.dp))
+        OutlinedTextField(
+            value = query, onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Search products or SKU") }, singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+        )
+        Spacer(Modifier.height(12.dp))
+        if (products.isEmpty()) {
+            EmptyInventoryCard(onAddProduct)
+        } else if (filteredProducts.isEmpty()) {
+            Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                Text("No matching products. Try another search.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+                items(filteredProducts, key = { it.id }) { product ->
+                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                                Box(Modifier.size(46.dp).background(DashboardMint, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                                    Text(product.name.firstOrNull()?.uppercase() ?: "P", color = DashboardGreen, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                                }
+                                Column(Modifier.weight(1f)) {
+                                    Text(product.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                    if (product.sku.isNotBlank()) Text("SKU: ${product.sku}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Surface(
+                                    color = if (product.quantity <= 5) DashboardAmber else DashboardMint,
+                                    shape = RoundedCornerShape(10.dp),
+                                ) {
+                                    Text("${product.quantity} in stock", modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column {
+                                    Text("Purchase", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(formatBdt(product.purchasePricePoisha), fontWeight = FontWeight.Medium)
+                                }
+                                Column {
+                                    Text("Selling price", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(formatBdt(product.sellingPricePoisha), fontWeight = FontWeight.SemiBold, color = DashboardGreen)
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("Unit margin", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(formatBdt(product.sellingPricePoisha - product.purchasePricePoisha), fontWeight = FontWeight.Medium)
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(onClick = { onEdit(product) }) { Text("Edit") }
+                                TextButton(onClick = { onDelete(product) }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Delete") }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InsightsContent(
+    modifier: Modifier,
+    products: List<Product>,
+    units: Int,
+    stockCost: Long,
+    potentialSales: Long,
+    potentialMargin: Long,
+    lowStock: List<Product>,
+) {
+    Column(modifier.verticalScroll(rememberScrollState()).padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("Insights", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Inventory-based estimates, not recorded sales.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        MetricCard("Stock cost value", formatBdt(stockCost), "Purchase cost of current stock", Modifier.fillMaxWidth(), DashboardMint)
+        MetricCard("Potential sales value", formatBdt(potentialSales), "If all current stock sells at listed prices", Modifier.fillMaxWidth(), Color(0xFFEAF0FB))
+        MetricCard("Potential gross margin", formatBdt(potentialMargin), "Before expenses, discounts, and losses", Modifier.fillMaxWidth(), Color(0xFFF4EAFE))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricCard("Catalog items", products.size.toString(), "Unique products", Modifier.weight(1f), Color(0xFFF0F3F1))
+            MetricCard("Stock units", units.toString(), "Current quantity", Modifier.weight(1f), Color(0xFFF0F3F1))
+        }
+        Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = if (lowStock.isNotEmpty()) DashboardAmber else DashboardMint)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Restock watch", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("${lowStock.size} product(s) currently have 5 or fewer units.")
+                lowStock.take(5).forEach { Text("• ${it.name}: ${it.quantity} left", style = MaterialTheme.typography.bodyMedium) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricCard(title: String, value: String, detail: String, modifier: Modifier, tint: Color) {
+    Card(modifier, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = tint)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = DashboardInk)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun EmptyInventoryCard(onAddProduct: () -> Unit) {
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+        Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(54.dp).background(DashboardMint, CircleShape), contentAlignment = Alignment.Center) {
+                Text("+", color = DashboardGreen, style = MaterialTheme.typography.headlineMedium)
+            }
+            Text("Your inventory starts here", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text("Add products with stock and prices. Each shop keeps its own catalog.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Button(onClick = onAddProduct) { Text("Add first product") }
+        }
     }
 }
 
@@ -173,12 +428,15 @@ private fun ProductEditorDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initial == null) "Add product" else "Edit product", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("Product name *") }, singleLine = true)
-                OutlinedTextField(sku, { sku = it }, label = { Text("SKU (optional)") }, singleLine = true)
-                OutlinedTextField(quantity, { quantity = it.filter(Char::isDigit) }, label = { Text("Stock quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
-                OutlinedTextField(purchase, { purchase = it }, label = { Text("Purchase price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
-                OutlinedTextField(selling, { selling = it }, label = { Text("Selling price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
+            Column(
+                Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Product name *") }, singleLine = true)
+                OutlinedTextField(sku, { sku = it }, modifier = Modifier.fillMaxWidth(), label = { Text("SKU (optional)") }, singleLine = true)
+                OutlinedTextField(quantity, { quantity = it.filter(Char::isDigit) }, modifier = Modifier.fillMaxWidth(), label = { Text("Stock quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(purchase, { purchase = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Purchase price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
+                OutlinedTextField(selling, { selling = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Selling price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         },
