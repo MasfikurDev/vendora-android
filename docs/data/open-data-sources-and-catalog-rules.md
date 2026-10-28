@@ -8,13 +8,10 @@ The shop-creation dialog reads `app/src/main/assets/catalog/shop_types.json`. Th
 
 The current Room schema still stores the selected English label in `ShopEntity.businessType` for compatibility with existing saved shops. The catalog IDs are not yet persisted as canonical shop-type IDs; adding a dedicated ID column should be a separate, explicit Room migration. Do not silently change existing values.
 
-## Offline starter product catalog: Moshiur Electronics example
+## Offline home-appliance category suggestions
 
-The app includes `app/src/main/assets/catalog/home_appliances.json`, an editable suggestion list for a home-appliance retailer. It offers user-provided example brand names (VISION, KIAM, Prestige, RFL, Hawkins, Minister, VIGO, Jaipan, Jamuna) and categories such as rice cookers, irons, refrigerators, cookware/casseroles, induction cookers, blenders, mixer grinders, water filters/purifiers, and electric kettles.
+The app includes `app/src/main/assets/catalog/home_appliances.json`, a generic offline category list for electronics and home-appliance shops. It contains broad product categories and example product types only; it contains no real shop names, brand names, official company links, product imagery, prices, or inventory records. Brand choices remain user-entered and shop-specific.
 
-This is **not** an imported inventory or official brand registry. It does not create a sample shop, products, stock, SKUs, barcodes, prices, sales, warranties, or product images. Shop owners must enter and verify their own values. Suggestions are editable and offered only for electronics/home-appliance shops; existing shop-specific Room options remain available.
-
-The user-provided names are not all necessarily Bangladesh-origin brands. Public references confirm example product ranges for [VISION](https://vision.com.bd/kitchen-appliances/all), [VIGO Electronics](https://vigoelectronics.com/about), and [Jamuna Electronics](https://www.estorejamuna.com/about); these links support category fit, not every brand name, model, or current availability. Do not infer authenticity or official affiliation from a text field.
 
 ## Sources and intended use
 
