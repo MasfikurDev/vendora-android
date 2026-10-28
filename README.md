@@ -1,13 +1,15 @@
 # Vendora
 
-Offline-first Android shop management for owners who operate one or more businesses.
+**Run your business, your way.** Vendora brings products, sales, stock, and business performance together in one mobile workspace.
 
 > **Current status (2026-10-24):** Early implementation, not production-ready. The app has a Kotlin + Jetpack Compose shell, local shop creation/switching, and shop-scoped product storage implemented on the active feature branch. Product storage currently uses JSON in SharedPreferences; Room/SQLite migration, a complete inventory UI, and end-to-end business workflows are still outstanding. Check [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the authoritative snapshot and history.
 
 ## Product goals
 
+Vendora is a business-management workspace, not just an inventory tracker. The experience should put selling, business identity, products, activity, and useful insights first. Offline capability supports reliability but is not the brand's headline.
+
 - Manage multiple shops under one owner, with strict shop-scoped data access.
-- Work reliably offline; local storage is the source of truth.
+- Keep core business workflows available without internet access; local storage is the source of truth.
 - Track products, purchases, stock movements, sales, returns, expenses, and reports.
 - Keep financial calculations deterministic and auditable.
 - Support configurable retail business types without forcing every business into the same workflow.
