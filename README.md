@@ -2,13 +2,13 @@
 
 Offline-first Android shop management for owners who operate one or more businesses.
 
-> **Current status (2026-10-28):** Early preview, not production-ready. The app uses Room for shops, products, sale-line snapshots, and stock movements; includes a mobile-first shop dashboard, inventory editing, multi-item selling, and transactional checkout. The legacy SharedPreferences/JSON data is imported once into Room. Checkout integrity and shop-isolation instrumentation tests are being added; CI compiles instrumentation tests but does not run them on an emulator. Check [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the detailed status.
+> **Current status (2026-10-28):** Early preview, not production-ready. The app uses Room for shops, products, reusable brand/category/unit options, sale-line snapshots, and stock movements; includes a mobile-first shop dashboard, inventory editing, multi-item selling, and transactional checkout. The legacy SharedPreferences/JSON data is imported once into Room. Checkout integrity and shop-isolation instrumentation tests are being added; CI compiles instrumentation tests but does not run them on an emulator. Check [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md) for the detailed status.
 
 ## Product goals
 
 - Manage multiple shops under one owner, with strict shop-scoped data access.
 - Work reliably offline; local storage is the source of truth.
-- Track products, purchases, stock movements, sales, returns, expenses, and reports.
+- Track products, brands, categories, units, barcodes, configurable low-stock thresholds, stock movements, sales, returns, expenses, and reports.
 - Keep financial calculations deterministic and auditable.
 - Support configurable retail business types without forcing every business into the same workflow.
 - Make AI optional; ordinary business operations must never depend on an AI service.
@@ -20,7 +20,7 @@ Offline-first Android shop management for owners who operate one or more busines
 - JDK 17, Android SDK 36
 - GitHub Actions: debug APK build and JVM unit tests
 - **Current persistence:** Room/SQLite via Room entities, DAO, and repository; SharedPreferences/JSON is retained only as a legacy import source
-- **Schema status:** Room schema is currently version 1; explicit migration coverage is still needed before schema changes
+- **Schema status:** Room schema is version 2 on the reusable-product-details feature branch, with an explicit v1→v2 migration; CI/device migration verification is still pending
 - Coroutines/Flow, repository boundaries, and lifecycle-aware state as implementation evolves
 
 Do not describe planned technologies as already implemented. Keep the app small and add architecture only when a feature needs it.
@@ -44,7 +44,7 @@ Staff permissions, multi-device sync, cloud services, forecasting, and specializ
 - Use transactions for operations that update a sale and stock together.
 - Snapshot relevant prices and costs on transaction lines so historical reports remain meaningful.
 - Include shop ownership/scope in relevant data access paths and tests.
-- Use explicit Room migrations and test each schema change; the current schema is version 1.
+- Use explicit Room migrations and test each schema change; the feature branch adds a v1→v2 migration.
 - Never commit credentials, signing keys, private API keys, or real customer data.
 - AI output is untrusted input. Validate tool arguments and permissions, and calculate financial results in application code.
 
@@ -76,7 +76,7 @@ CI builds a debug APK, runs JVM unit tests, and compiles Android instrumentation
 - Production releases require a separately planned, signed release process and explicit version/tag policy.
 - Use GitHub auto-merge for agent-created PRs only when the repository policy permits it and the exact PR head checks pass.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), and [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
+See [Reusable product details and roadmap](docs/product/reusable-product-details.md), [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), [architecture principles](docs/architecture/principles.md), and [Project status and transition history](docs/PROJECT_STATUS_AND_HISTORY.md).
 
 ## License
 
