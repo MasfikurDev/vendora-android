@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: 'Publish this successful signed build as a GitHub prerelease'
+        description: 'Publish this successful signed debug build as a GitHub prerelease'
         required: true
         type: boolean
         default: false
@@ -43,7 +43,7 @@ concurrency:
 
 jobs:
   verify-and-sign:
-    name: Build, test, sign, and verify APK
+    name: Build, test, sign, and verify debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -83,7 +83,7 @@ jobs:
           test -s "$RUNNER_TEMP/vendora-release.jks"
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/vendora-release.jks" >> "$GITHUB_ENV"
 
-      - name: Build signed release APK, run unit tests, and lint
+      - name: Build signed debug APK, run unit tests, and lint
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -96,29 +96,29 @@ jobs:
               exit 1
             fi
           done
-          ./gradlew --no-daemon --build-cache :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
+          ./gradlew --no-daemon --build-cache :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
-      - name: Verify APK signature and prepare release notes
+      - name: Verify debug APK signature and prepare release notes
         shell: bash
         env:
           RELEASE_NAME: ${{ github.event.head_commit.message || github.event.pull_request.title || github.workflow }}
         run: |
           set -euo pipefail
-          APK="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          APK="$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
           test -n "$APK"
-          cp "$APK" app-release.apk
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs app-release.apk
-          sha256sum app-release.apk > SHA256SUMS.txt
+          cp "$APK" app-debug.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs app-debug.apk
+          sha256sum app-debug.apk > SHA256SUMS.txt
 
           {
-            echo "# Vendora signed prerelease notes"
+            echo "# Vendora updatable debug prerelease notes"
             echo
             echo "- **Purpose:** ${RELEASE_NAME%%$'\n'*}"
             echo "- **Branch:** ${GITHUB_REF_NAME}"
             echo "- **Commit:** ${GITHUB_SHA}"
             echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
-            echo "- **CI validation:** signed release APK build, JVM unit tests, Android Lint, and APK signature verification passed."
-            echo "- **APK:** app-release.apk (signed prerelease; not a production release)"
+            echo "- **CI validation:** signed debug APK build, JVM unit tests, Android Lint, and APK signature verification passed."
+            echo "- **APK:** app-debug.apk (debug build signed with the persistent Vendora test key; not a production release)"
             echo
             echo "## Phone testing checklist"
             echo "- Install on a test phone and verify launch, shop switching, product persistence, and sales/stock updates."
@@ -131,22 +131,22 @@ jobs:
             echo "Version name: 0.1.0"
             echo "Version code: 1"
             echo "Branch: ${GITHUB_REF_NAME}"
-            echo "Build type: release (signed prerelease)"
+            echo "Build type: debug (signed with persistent Vendora test key)"
             echo "Commit: ${GITHUB_SHA}"
             echo "Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo "Minimum Android SDK: 26 (Android 8.0)"
             echo "Target Android SDK: 36"
             echo "Java: 17"
-            echo "Validation: assembleRelease, testDebugUnitTest, lintRelease, apksigner verify passed"
-            echo "APK filename: app-release.apk"
+            echo "Validation: assembleDebug, testDebugUnitTest, lintDebug, apksigner verify passed"
+            echo "APK filename: app-debug.apk"
           } > BUILD-INFO.txt
 
       - name: Upload signed APK and notes as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vendora-signed-prerelease-${{ github.run_number }}-${{ github.run_attempt }}
+          name: vendora-updatable-debug-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
-            app-release.apk
+            app-debug.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
             RELEASE-NOTES.md
@@ -158,10 +158,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-preview-${{ github.run_number }}
-          name: Vendora Signed Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
+          name: Vendora Updatable Debug Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
           body_path: RELEASE-NOTES.md
           files: |
-            app-release.apk
+            app-debug.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
             RELEASE-NOTES.md
@@ -175,10 +175,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-beta-${{ github.run_number }}
-          name: Vendora Signed Beta 0.1.0 — Build ${{ github.run_number }}
+          name: Vendora Debug Beta 0.1.0 — Build ${{ github.run_number }}
           body_path: RELEASE-NOTES.md
           files: |
-            app-release.apk
+            app-debug.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
             RELEASE-NOTES.md
