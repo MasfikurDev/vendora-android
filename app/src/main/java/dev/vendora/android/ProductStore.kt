@@ -13,6 +13,11 @@ data class Product(
     val quantity: Int,
     val purchasePricePoisha: Long,
     val sellingPricePoisha: Long,
+    val brand: String = "",
+    val category: String = "",
+    val unit: String = "pcs",
+    val barcode: String = "",
+    val lowStockThreshold: Int = 5,
 )
 
 class ProductStore(context: Context) {
@@ -33,6 +38,16 @@ class ProductStore(context: Context) {
                             quantity = item.getInt("quantity"),
                             purchasePricePoisha = item.getLong("purchasePricePoisha"),
                             sellingPricePoisha = item.getLong("sellingPricePoisha"),
+                    brand = item.optString("brand"),
+                    category = item.optString("category"),
+                    unit = item.optString("unit", "pcs"),
+                    barcode = item.optString("barcode"),
+                    lowStockThreshold = item.optInt("lowStockThreshold", 5),
+                            brand = item.optString("brand"),
+                            category = item.optString("category"),
+                            unit = item.optString("unit", "pcs"),
+                            barcode = item.optString("barcode"),
+                            lowStockThreshold = item.optInt("lowStockThreshold", 5),
                         )
                     )
                 }
@@ -55,7 +70,7 @@ class ProductStore(context: Context) {
                 it.id != product.id
         }
         require(!duplicateSku) { "This SKU already exists in this shop." }
-        val normalized = product.copy(name = product.name.trim(), sku = product.sku.trim())
+        val normalized = product.copy(name = product.name.trim(), sku = product.sku.trim(), brand = product.brand.trim(), category = product.category.trim(), unit = product.unit.trim().ifBlank { "pcs" }, barcode = product.barcode.trim())
         val index = all.indexOfFirst { it.id == normalized.id }
         if (index >= 0) all[index] = normalized else all.add(normalized)
         writeAll(all)
@@ -93,7 +108,12 @@ class ProductStore(context: Context) {
                 .put("sku", p.sku)
                 .put("quantity", p.quantity)
                 .put("purchasePricePoisha", p.purchasePricePoisha)
-                .put("sellingPricePoisha", p.sellingPricePoisha))
+                .put("sellingPricePoisha", p.sellingPricePoisha)
+                .put("brand", p.brand)
+                .put("category", p.category)
+                .put("unit", p.unit)
+                .put("barcode", p.barcode)
+                .put("lowStockThreshold", p.lowStockThreshold))
         }
         preferences.edit().putString(KEY_PRODUCTS, array.toString()).apply()
     }
