@@ -34,9 +34,7 @@ suspend fun VendoraRepository.checkout(
         "Each product should appear only once in the cart."
     }
 
-    val databaseField = VendoraRepository::class.java.getDeclaredField("database")
-    databaseField.isAccessible = true
-    val database = databaseField.get(this) as dev.vendora.android.VendoraDatabase
+    val database = this.database
     val dao = database.vendoraDao()
 
     return database.withTransaction {
