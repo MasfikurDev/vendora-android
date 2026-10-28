@@ -37,12 +37,7 @@ class ProductStore(context: Context) {
                             sku = item.getString("sku"),
                             quantity = item.getInt("quantity"),
                             purchasePricePoisha = item.getLong("purchasePricePoisha"),
-                            sellingPricePoisha = item.getLong("sellingPricePoisha"),
-                    brand = item.optString("brand"),
-                    category = item.optString("category"),
-                    unit = item.optString("unit", "pcs"),
-                    barcode = item.optString("barcode"),
-                    lowStockThreshold = item.optInt("lowStockThreshold", 5),
+                                    sellingPricePoisha = item.getLong("sellingPricePoisha"),
                             brand = item.optString("brand"),
                             category = item.optString("category"),
                             unit = item.optString("unit", "pcs"),
@@ -93,6 +88,11 @@ class ProductStore(context: Context) {
                     quantity = item.getInt("quantity"),
                     purchasePricePoisha = item.getLong("purchasePricePoisha"),
                     sellingPricePoisha = item.getLong("sellingPricePoisha"),
+                    brand = item.optString("brand"),
+                    category = item.optString("category"),
+                    unit = item.optString("unit", "pcs"),
+                    barcode = item.optString("barcode"),
+                    lowStockThreshold = item.optInt("lowStockThreshold", 5),
                 ))
             }
         }
