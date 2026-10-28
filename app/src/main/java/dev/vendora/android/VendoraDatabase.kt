@@ -11,10 +11,8 @@ import androidx.room.Query
 import androidx.room.RoomDatabase
 
 /**
- * Initial Room schema for Vendora's offline-first local database.
- *
- * This is schema foundation only. Existing SharedPreferences stores remain the active
- * persistence layer until a tested importer and repository migration are implemented.
+ * Room schema for Vendora's offline-first local database.
+ * Legacy SharedPreferences data is imported before the app switches to Room-backed stores.
  */
 @Entity(tableName = "shops")
 data class ShopEntity(
@@ -87,6 +85,9 @@ interface VendoraDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertShop(shop: ShopEntity)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun importShops(shops: List<ShopEntity>)
+
     @Query("SELECT * FROM products WHERE shopId = :shopId ORDER BY name COLLATE NOCASE")
     suspend fun getProducts(shopId: String): List<ProductEntity>
 
@@ -98,6 +99,9 @@ interface VendoraDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertProduct(product: ProductEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun importProducts(products: List<ProductEntity>)
 
     @Query("SELECT * FROM stock_movements WHERE shopId = :shopId ORDER BY timestampMillis DESC")
     suspend fun getStockMovements(shopId: String): List<StockMovementEntity>
