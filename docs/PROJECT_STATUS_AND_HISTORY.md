@@ -105,3 +105,12 @@ These are implementation and test-source statements, not a claim that all behavi
 - Added instrumentation test coverage for successful checkout, insufficient-stock rollback, and cross-shop product access on branch `fix/checkout-integrity-prerelease`.
 - CI will compile instrumentation test sources, but execution still requires an Android emulator or device; no emulator execution is claimed here.
 - Release status must be confirmed from the actual GitHub Actions run and Releases page, not inferred from workflow configuration.
+
+
+### 2026-10-28 — Open-source documentation and licensing baseline
+
+- Added the Apache-2.0 license for Vendora-authored application source and a third-party notices document that separates source-code licensing from external data, assets, and dependency terms.
+- Expanded the README, contributor guidance, security policy, documentation index, and pull-request checklist; added community conduct/support guidance, a changelog, and structured bug/feature issue forms.
+- Rewrote the current status snapshot to distinguish the default branch from open dependent PRs #30 → #31 → #32. Historical statements that no license was selected or Room was not implemented are retained only as dated history.
+- Added catalog governance requirements for exact-source provenance, license review, validation, and distribution attribution.
+- No application build or test suite was run for this documentation-focused change. Confirm the exact PR head's CI before merge.
