@@ -34,7 +34,7 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
@@ -145,7 +145,8 @@ jobs:
           set -euo pipefail
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          sha256sum "$APK" | sed 's#app/build/outputs/apk/debug/##' > SHA256SUMS.txt
+          cp "$APK" app-debug.apk
+          sha256sum app-debug.apk > SHA256SUMS.txt
 
           if [[ -n "${DEBUG_KEYSTORE_PATH:-}" ]]; then
             SIGNING_NOTE="Persistent Vendora debug signing enabled; feature-branch and main builds using this key can update this installation."
@@ -198,48 +199,78 @@ jobs:
         with:
           name: vendora-build-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
-            app/build/outputs/apk/debug/*.apk
+            app-debug.apk
             SHA256SUMS.txt
             BUILD-INFO.txt
             RELEASE-NOTES.md
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish requested feature preview
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.1.0-preview-${{ github.run_number }}
-          name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
-          body_path: RELEASE-NOTES.md
-          files: |
-            app/build/outputs/apk/debug/app-debug.apk
-            SHA256SUMS.txt
-            BUILD-INFO.txt
-            RELEASE-NOTES.md
-          fail_on_unmatched_files: true
-          draft: false
-          prerelease: true
-          generate_release_notes: true
-
-      - name: Publish requested main beta
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.1.0-beta-${{ github.run_number }}
-          name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
-          body_path: RELEASE-NOTES.md
-          files: |
-            app/build/outputs/apk/debug/app-debug.apk
-            SHA256SUMS.txt
-            BUILD-INFO.txt
-            RELEASE-NOTES.md
-          fail_on_unmatched_files: true
-          draft: false
-          prerelease: true
-          generate_release_notes: true
-
       - name: Remove temporary signing key
         if: always()
         shell: bash
         run: rm -f "$RUNNER_TEMP/vendora-debug.jks"
+
+  publish-feature-preview:
+    name: Publish feature preview
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download verified build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vendora-build-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts
+
+      - name: Publish feature preview release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-preview-${{ github.run_number }}
+          name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
+          body_path: artifacts/RELEASE-NOTES.md
+          files: |
+            artifacts/app-debug.apk
+            artifacts/SHA256SUMS.txt
+            artifacts/BUILD-INFO.txt
+            artifacts/RELEASE-NOTES.md
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+
+  publish-main-beta:
+    name: Publish main beta
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download verified build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: vendora-build-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts
+
+      - name: Publish main beta release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-beta-${{ github.run_number }}
+          name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
+          body_path: artifacts/RELEASE-NOTES.md
+          files: |
+            artifacts/app-debug.apk
+            artifacts/SHA256SUMS.txt
+            artifacts/BUILD-INFO.txt
+            artifacts/RELEASE-NOTES.md
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: true
+          generate_release_notes: true
