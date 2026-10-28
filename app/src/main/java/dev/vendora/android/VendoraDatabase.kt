@@ -74,14 +74,28 @@ data class StockMovementEntity(
 )
 
 @Entity(
+    tableName = "sales",
+    indices = [Index(value = ["shopId", "timestampMillis"])],
+)
+data class SaleEntity(
+    @PrimaryKey val id: String,
+    val shopId: String,
+    val timestampMillis: Long,
+    val totalPoisha: Long,
+    val itemCount: Int,
+)
+
+@Entity(
     tableName = "sale_lines",
     indices = [
         Index(value = ["shopId", "timestampMillis"]),
         Index(value = ["shopId", "productId", "timestampMillis"]),
+        Index(value = ["shopId", "saleId"]),
     ],
 )
 data class SaleLineEntity(
     @PrimaryKey val id: String,
+    val saleId: String,
     val shopId: String,
     val productId: String,
     val productName: String,
@@ -143,6 +157,12 @@ interface VendoraDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertStockMovements(movements: List<StockMovementEntity>)
 
+    @Query("SELECT * FROM sales WHERE shopId = :shopId ORDER BY timestampMillis DESC, id DESC")
+    suspend fun getSales(shopId: String): List<SaleEntity>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertSale(sale: SaleEntity)
+
     @Query("SELECT * FROM sale_lines WHERE shopId = :shopId ORDER BY timestampMillis DESC")
     suspend fun getSaleLines(shopId: String): List<SaleLineEntity>
 
@@ -156,9 +176,10 @@ interface VendoraDao {
         ProductEntity::class,
         CatalogOptionEntity::class,
         StockMovementEntity::class,
+        SaleEntity::class,
         SaleLineEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class VendoraDatabase : RoomDatabase() {

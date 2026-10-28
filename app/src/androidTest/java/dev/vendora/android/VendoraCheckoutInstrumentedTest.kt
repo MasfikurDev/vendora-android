@@ -55,13 +55,40 @@ class VendoraCheckoutInstrumentedTest {
         assertEquals(1, result.lineCount)
         assertEquals(300L, result.totalPoisha)
         assertEquals(3, dao.getProduct("shop-a", "product-a")?.quantity)
+        val saleHeader = dao.getSales("shop-a").single()
+        assertEquals(result.saleId, saleHeader.id)
+        assertEquals(2, saleHeader.itemCount)
+        assertEquals(300L, saleHeader.totalPoisha)
         val sale = dao.getSaleLines("shop-a").single()
+        assertEquals(result.saleId, sale.saleId)
         assertEquals(2, sale.quantity)
         assertEquals(150L, sale.unitPricePoisha)
         val movement = dao.getStockMovements("shop-a").single()
         assertEquals(-2, movement.delta)
         assertEquals(5, movement.quantityBefore)
         assertEquals(3, movement.quantityAfter)
+    }
+
+    @Test
+    fun multipleProductsAreGroupedIntoOneSaleTransaction() = runBlocking {
+        seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 5)
+        seedShopAndProduct(shopId = "shop-a", productId = "product-b", quantity = 4)
+
+        val result = repository.checkout(
+            shopId = "shop-a",
+            cart = listOf(
+                CheckoutLine(productId = "product-a", quantity = 2),
+                CheckoutLine(productId = "product-b", quantity = 1),
+            ),
+            timestampMillis = 200L,
+        )
+
+        assertEquals(2, result.lineCount)
+        assertEquals(450L, result.totalPoisha)
+        assertEquals(1, dao.getSales("shop-a").size)
+        assertEquals(3, dao.getSales("shop-a").single().itemCount)
+        assertEquals(setOf(result.saleId), dao.getSaleLines("shop-a").map { it.saleId }.toSet())
+        assertEquals(2, dao.getSaleLines("shop-a").size)
     }
 
     @Test
@@ -83,6 +110,7 @@ class VendoraCheckoutInstrumentedTest {
 
         assertEquals(5, dao.getProduct("shop-a", "product-a")?.quantity)
         assertEquals(1, dao.getProduct("shop-a", "product-b")?.quantity)
+        assertEquals(0, dao.getSales("shop-a").size)
         assertEquals(0, dao.getSaleLines("shop-a").size)
         assertEquals(0, dao.getStockMovements("shop-a").size)
     }
@@ -103,6 +131,8 @@ class VendoraCheckoutInstrumentedTest {
 
         assertEquals(5, dao.getProduct("shop-a", "shared-product")?.quantity)
         assertEquals(7, dao.getProduct("shop-b", "other-product")?.quantity)
+        assertEquals(0, dao.getSales("shop-a").size)
+        assertEquals(0, dao.getSales("shop-b").size)
         assertEquals(0, dao.getSaleLines("shop-a").size)
         assertEquals(0, dao.getSaleLines("shop-b").size)
     }

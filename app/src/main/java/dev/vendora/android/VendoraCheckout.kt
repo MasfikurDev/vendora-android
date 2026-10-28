@@ -11,6 +11,7 @@ data class CheckoutLine(
 
 data class CheckoutResult(
     val shopId: String,
+    val saleId: String,
     val lineCount: Int,
     val totalPoisha: Long,
     val timestampMillis: Long,
@@ -55,9 +56,11 @@ suspend fun VendoraRepository.checkout(
             Triple(line, product, price to lineTotal)
         }
 
+        val saleId = UUID.randomUUID().toString()
         val sales = prepared.map { (line, product, amounts) ->
             SaleLineEntity(
                 id = UUID.randomUUID().toString(),
+                saleId = saleId,
                 shopId = shopId,
                 productId = product.id,
                 productName = product.name,
@@ -88,13 +91,22 @@ suspend fun VendoraRepository.checkout(
             throw IllegalArgumentException("The cart total is too large.", error)
         }
 
+        dao.insertSale(
+            SaleEntity(
+                id = saleId,
+                shopId = shopId,
+                timestampMillis = timestampMillis,
+                totalPoisha = total,
+                itemCount = sales.sumOf { it.quantity },
+            ),
+        )
+        dao.insertSaleLines(sales)
         sales.forEachIndexed { index, sale ->
-            dao.insertSaleLines(listOf(sale))
             val product = prepared[index].second
             dao.updateProduct(product.copy(quantity = product.quantity - sale.quantity))
         }
         dao.insertStockMovements(movements)
 
-        CheckoutResult(shopId, sales.size, total, timestampMillis)
+        CheckoutResult(shopId, saleId, sales.size, total, timestampMillis)
     }
 }

@@ -1,6 +1,6 @@
 # Reusable product details
 
-Status: implemented on `feat/reusable-product-details`; pending pull-request review and CI.
+Status: reusable product metadata is implemented in the dependent feature stack; sales activity is implemented on `feat/sales-history-activity` and pending CI/review.
 
 ## Implemented in this change
 
@@ -21,6 +21,12 @@ Brand, category, and unit options are stored in Room independently of products, 
 - Keep barcode values optional; do not assume all business types use unique barcodes.
 - Use integer poisha for all prices.
 - Keep saved options when a product is deleted; a future dedicated catalog-management screen may allow owners to rename or remove unused options deliberately.
+
+## Sales activity added in the next feature stack
+
+Checkout now writes a sale header and its product-line snapshots in the same Room transaction as stock deductions and stock-movement records. The Activity screen lists shop-scoped sales, totals, timestamps, and expandable item details. Existing version-2 sale-line records are preserved during the v2→v3 migration; because older records had no transaction identifier, each historical line is represented as its own legacy sale rather than guessing which lines belonged together.
+
+The current CI workflow compiles instrumentation tests but does not execute them on an emulator/device. Physical-device verification of migration and checkout remains required before treating the new Activity flow as runtime-verified.
 
 ## Next useful additions (not implemented)
 

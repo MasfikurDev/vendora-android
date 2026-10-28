@@ -24,6 +24,7 @@ This document is the status ledger for the repository. Update it when implementa
 | [#30](https://github.com/MasfikurDev/vendora-android/pull/30) | `feat/reusable-product-details` | Reusable brand/category/unit options, product metadata, Room v1→v2 migration, legacy import updates | Open; base feature dependency |
 | [#31](https://github.com/MasfikurDev/vendora-android/pull/31) | `feat/shop-type-taxonomy-open-data` | Offline shop-type catalog, Bengali labels, source/provenance guidance | Open; based on #30 |
 | [#32](https://github.com/MasfikurDev/vendora-android/pull/32) | `docs/licensing-and-third-party-notices` | Apache-2.0 source license, third-party notices, project documentation and community guidance | Open; stacked on #31 |
+| Next PR | `feat/sales-history-activity` | Group checkout lines into sale transactions, add v2→v3 migration, and show shop-scoped sales activity | Branch created from #32 head; open PR to follow after CI |
 
 Do not assume these PR changes are available on `main` until the relevant PRs are merged. Preserve dependency order: #30 → #31 → #32. Recheck each PR's current base, head SHA, required checks, and mergeability before merging or retargeting.
 
@@ -33,7 +34,8 @@ Do not assume these PR changes are available on `main` until the relevant PRs ar
 - Room persistence with a legacy SharedPreferences/JSON import path.
 - Product metadata fields including brand, category, unit, barcode text, and configurable low-stock threshold.
 - Reusable brand/category/unit options scoped by shop.
-- Multi-item cart and checkout foundations designed to commit sale lines, stock deductions, and movement records transactionally.
+- Multi-item cart and checkout foundations designed to commit sale headers, sale-line snapshots, stock deductions, and movement records transactionally.
+- Sales Activity screen with per-shop sale totals, timestamps, item counts, and expandable line details on the next feature branch.
 - Bundled shop-type catalog with stable internal IDs, English/Bengali labels, aliases, and OSM reference tags.
 - Instrumentation test source for checkout integrity, shop isolation, reusable options, and catalog invariants.
 
@@ -44,6 +46,7 @@ These are implementation and test-source statements, not a claim that all behavi
 - Android instrumentation tests are not executed by the current CI workflow.
 - The selected shop-type ID is not yet persisted as a canonical Room field; the existing business-type label is retained for compatibility.
 - Camera barcode scanning, product image management, complete purchase/return/expense workflows, backup/restore validation, and production signing are not established as complete by this snapshot.
+- Historical sale-line records cannot recover their original multi-item transaction grouping; the v2→v3 migration preserves each existing row as an individual legacy sale.
 - Optional Open Food Facts lookup, GS1 interoperability, formal BSIC mapping, and customs HS-code workflows are research/future possibilities, not shipped integrations.
 - No claim is made that Vendora verifies trade licenses, VAT/TIN status, pharmacy permissions, product authenticity, tax compliance, or customs compliance.
 - No production support window, response-time SLA, or bug-bounty program is promised.

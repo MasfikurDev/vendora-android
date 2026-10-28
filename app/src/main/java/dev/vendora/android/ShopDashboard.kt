@@ -31,6 +31,7 @@ private enum class ShopSection(val label: String) {
     Overview("Overview"),
     Products("Products"),
     Selling("Selling"),
+    Activity("Activity"),
     Insights("Insights"),
 }
 
@@ -39,6 +40,8 @@ private enum class ShopSection(val label: String) {
 fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var products by remember(shop.id) { mutableStateOf(emptyList<Product>()) }
+    var sales by remember(shop.id) { mutableStateOf(emptyList<SaleEntity>()) }
+    var saleLines by remember(shop.id) { mutableStateOf(emptyList<SaleLineEntity>()) }
     var brandOptions by remember(shop.id) { mutableStateOf(emptyList<String>()) }
     var categoryOptions by remember(shop.id) { mutableStateOf(emptyList<String>()) }
     var unitOptions by remember(shop.id) { mutableStateOf(listOf("pcs", "kg", "g", "litre", "ml", "box", "pack", "dozen", "meter")) }
@@ -49,8 +52,13 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
         unitOptions = (listOf("pcs", "kg", "g", "litre", "ml", "box", "pack", "dozen", "meter") +
             repository.getCatalogOptions(shop.id, CatalogOptionKind.UNIT)).distinctBy { it.lowercase() }
     }
+    suspend fun refreshSales() {
+        sales = repository.getSales(shop.id)
+        saleLines = repository.getSaleLines(shop.id)
+    }
     LaunchedEffect(shop.id) {
         refreshProductData()
+        refreshSales()
     }
     var section by remember { mutableStateOf(ShopSection.Overview) }
     var query by remember { mutableStateOf("") }
@@ -107,6 +115,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                                     ShopSection.Overview -> "⌂"
                                     ShopSection.Products -> "▦"
                                     ShopSection.Selling -> "＋"
+                                    ShopSection.Activity -> "◷"
                                     ShopSection.Insights -> "↗"
                                 },
                                 style = MaterialTheme.typography.titleLarge,
@@ -165,6 +174,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                             }
                             val result = repository.checkout(shop.id, lines)
                             products = repository.getProducts(shop.id).map { it.toProduct() }
+                            refreshSales()
                             cartQuantities = emptyMap()
                             checkoutSuccess = "Sale recorded. Total: ${formatBdt(result.totalPoisha)}"
                         } catch (failure: Exception) {
@@ -174,6 +184,11 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                         }
                     }
                 },
+            )
+            ShopSection.Activity -> SalesActivityContent(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                sales = sales,
+                saleLines = saleLines,
             )
             ShopSection.Insights -> InsightsContent(
                 modifier = Modifier.fillMaxSize().padding(padding),

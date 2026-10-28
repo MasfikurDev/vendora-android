@@ -23,6 +23,18 @@ object VendoraDatabaseProvider {
         }
     }
 
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("CREATE TABLE IF NOT EXISTS sales (id TEXT NOT NULL PRIMARY KEY, shopId TEXT NOT NULL, timestampMillis INTEGER NOT NULL, totalPoisha INTEGER NOT NULL, itemCount INTEGER NOT NULL)")
+            database.execSQL("ALTER TABLE sale_lines ADD COLUMN saleId TEXT NOT NULL DEFAULT ''")
+            database.execSQL("UPDATE sale_lines SET saleId = id WHERE saleId = ''")
+            // Historical rows did not record transaction grouping; preserve each row as its own sale.
+            database.execSQL("INSERT INTO sales (id, shopId, timestampMillis, totalPoisha, itemCount) SELECT id, shopId, timestampMillis, totalPoisha, quantity FROM sale_lines")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_sales_shopId_timestampMillis ON sales (shopId, timestampMillis)")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_sale_lines_shopId_saleId ON sale_lines (shopId, saleId)")
+        }
+    }
+
     @Volatile private var instance: VendoraDatabase? = null
 
     fun get(context: Context): VendoraDatabase =
@@ -31,7 +43,7 @@ object VendoraDatabaseProvider {
                 context.applicationContext,
                 VendoraDatabase::class.java,
                 "vendora.db",
-            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
         }
 }
 
@@ -156,6 +168,11 @@ class VendoraRepository(
             "A shop name and business type are required."
         }
         dao.upsertShop(shop.copy(name = shop.name.trim(), businessType = shop.businessType.trim()))
+    }
+
+    suspend fun getSales(shopId: String): List<SaleEntity> {
+        require(shopId.isNotBlank()) { "A shop is required." }
+        return dao.getSales(shopId)
     }
 
     suspend fun getSaleLines(shopId: String): List<SaleLineEntity> {
