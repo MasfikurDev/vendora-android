@@ -1,11 +1,30 @@
 # Project Status and Transition History
 
-Last verified: **2026-10-24**  
+Last verified: **2026-10-28**  
 Repository: [MasfikurDev/vendora-android](https://github.com/MasfikurDev/vendora-android)
 
 This document is the status ledger for the repository. Update it when implementation, architecture, CI/release behavior, or the active development path changes. Use dated entries so older assumptions are not silently overwritten.
 
 ## Current snapshot
+
+> **Current implementation note (2026-10-28):** This section supersedes older snapshots below where they say Room, the inventory UI, or selling workflows are not implemented. Those statements are retained as historical context, not current status.
+
+### Implemented on main at the last inspected revision
+
+- Kotlin + Jetpack Compose + Material 3 mobile app with shop selection and a shop dashboard.
+- Room version 1 database for shops, products, sale-line snapshots, and stock movements.
+- One-time legacy SharedPreferences/JSON import with malformed-record validation and preservation of original data on import errors.
+- Shop-scoped product CRUD and SKU duplicate checks, stock adjustments, multi-item cart, and checkout transaction intended to commit sale lines, stock deductions, and movement records together.
+- JVM unit tests and debug APK build in CI. CI does not run Android instrumentation tests on an emulator.
+- Latest inspected main SHA before this branch: `39fda25cf4225e88a7f7906d2db4e9b8000226c1`.
+
+### Active checkout-integrity change
+
+- Branch: `fix/checkout-integrity-prerelease`.
+- Adds Android instrumentation tests for successful checkout stock/sale/movement consistency, insufficient-stock rollback, and shop isolation.
+- These instrumentation tests require compilation and device/emulator execution before their behavior can be considered verified. Do not treat test source alone as a passing test result.
+- Current prerelease artifacts are debug/preview APKs, not production-signed builds.
+
 
 ### Implemented in the repository
 
@@ -79,24 +98,16 @@ This document is the status ledger for the repository. Update it when implementa
 
 ## Next recommended sequence
 
-1. Keep the current shop-selection/product-storage work isolated in a feature branch and get CI green.
-2. Add tests for shop persistence, malformed stored data, active-shop validity, product CRUD, SKU uniqueness, and cross-shop isolation.
-3. Integrate a mobile-first product catalog UI with search, empty/error states, and validated add/edit forms.
-4. Migrate persistence to Room in a dedicated, tested change before building financially meaningful workflows.
-5. Add stock movement, purchase, sale, return, and expense models with transaction-level integrity.
-6. Keep production signing and release policy separate from debug beta releases.
+1. Compile the instrumentation test source in CI, then run it on an emulator or physical test device when available.
+2. Verify successful and failed multi-item checkout, stock ledger consistency, two-shop isolation, legacy import, and persistence after restart.
+3. Add explicit Room migration tests before changing the schema from version 1.
+4. Correct remaining UI state/lifecycle gaps and improve sales history, product images/barcode support, and backup/export.
+5. Keep debug preview/beta builds separate from a signed production release process.
 
-### 2026-10-24 — Feature preview release workflow updated
 
-- The workflow on `feat/product-catalog-ui` now includes a feature-branch GitHub prerelease step, while the `main`-only beta release step remains separate.
-- Each successful workflow is intended to attach the debug APK, `SHA256SUMS.txt`, and `BUILD-INFO.txt`; the artifact is a preview/debug build, not a signed production release.
-- Commit `12d052e976b68a5b24cc09071813b48303140b24` triggered push and pull-request CI runs. At the time of this documentation update, those runs were still in progress; release publication and final CI outcome are not yet verified.
-- The current product catalog work is tracked by [PR #15](https://github.com/MasfikurDev/vendora-android/pull/15). The older statements above describing PR #13 as the current branch and product catalog UI as wholly unimplemented are historical snapshots and should not be used as the latest status.
+### 2026-10-28 — Room checkout integrity work
 
-### Updated next steps
-
-1. Verify CI for the exact latest PR #15 head SHA and confirm whether the feature prerelease was actually published.
-2. Finish review of product catalog behavior and add focused tests for shop isolation, persistence edge cases, SKU uniqueness, and CRUD validation.
-3. Migrate the interim SharedPreferences/JSON persistence to Room with explicit, tested migrations before financially significant workflows.
-4. Continue with stock movements, purchases, sales, returns, expenses, reports, and backup/export.
-5. Keep signed production distribution separate from debug preview/beta releases.
+- Rechecked main and found the status documents were stale: Room entities/repository, shop dashboard, selling flow, and transactional checkout are present in source.
+- Added instrumentation test coverage for successful checkout, insufficient-stock rollback, and cross-shop product access on branch `fix/checkout-integrity-prerelease`.
+- CI will compile instrumentation test sources, but execution still requires an Android emulator or device; no emulator execution is claimed here.
+- Release status must be confirmed from the actual GitHub Actions run and Releases page, not inferred from workflow configuration.
