@@ -39,6 +39,7 @@ class VendoraCheckoutInstrumentedTest {
         assertEquals(options.size, options.map { it.id }.distinct().size)
         assertEquals(options.size, options.map { it.labelEn }.distinct().size)
         assertEquals(true, options.any { it.id == "other" && it.labelEn == "Other / mixed business" })
+        assertEquals(true, options.any { it.id == "electronics_home_appliances" && it.labelEn == "Electronics & home appliances" })
         assertEquals(true, options.all { it.labelBn.isNotBlank() })
     }
 
