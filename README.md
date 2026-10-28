@@ -19,7 +19,7 @@ Offline-first Android shop management for owners who operate one or more busines
 - Android Gradle Plugin and Kotlin versions in `gradle/libs.versions.toml`
 - JDK 17, Android SDK 36
 - Room/SQLite with DAO/repository access and legacy JSON import
-- GitHub Actions: debug APK, JVM tests, Android instrumentation tests, and APK signature verification
+- GitHub Actions: debug APK, JVM tests, instrumentation-test source compilation, APK signature verification, and persistent signing-certificate verification when secrets are available. Emulator-backed instrumentation execution is opt-in.
 
 ## Current limitations
 
@@ -72,12 +72,12 @@ Requirements: JDK 17, Android SDK platform 36/build-tools 36.0.0, and the commit
 ./gradlew connectedDebugAndroidTest
 ```
 
-The first two commands do not require an emulator; `connectedDebugAndroidTest` requires a connected Android device or emulator. CI provisions an emulator for instrumentation tests. Check the exact workflow run and commit SHA before describing a build as verified.
+The first two commands do not require an emulator; `connectedDebugAndroidTest` requires a connected Android device or emulator. Routine CI compiles instrumentation-test sources but does not start an emulator. To run the full Android instrumentation suite, manually dispatch **Android CI and Release Builds** with `run_instrumentation=true`. Check the exact workflow run and tested commit SHA before describing a build as verified.
 
 ## Git and build workflow
 
 - Keep `main` buildable and use focused short-lived branches with pull requests.
-- CI runs on relevant pushes to `main`, pull requests targeting `main`, and manual workflow dispatch.
+- CI runs on relevant pushes to `main`, pull requests targeting `main`, and manual workflow dispatch. Routine feature-branch pushes do not trigger duplicate builds; use manual dispatch for a feature APK.
 - To build a feature branch, open **Actions → Android CI and Release Builds → Run workflow** and select that branch.
 - Leave `publish_release` unchecked for a downloadable artifact. Check it only when a GitHub prerelease is wanted.
 - Same-repository builds require the configured persistent debug signing secrets. Fork PRs use temporary signing and cannot update an app installed with the persistent key.
