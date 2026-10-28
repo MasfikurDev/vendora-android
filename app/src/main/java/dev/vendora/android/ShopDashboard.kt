@@ -677,5 +677,5 @@ private fun parsePoisha(value: String): Long? {
     return try { Math.addExact(Math.multiplyExact(taka, 100L), poisha) } catch (_: ArithmeticException) { null }
 }
 
-private fun formatBdt(poisha: Long): String =
+internal fun formatBdt(poisha: Long): String =
     "৳" + NumberFormat.getNumberInstance(Locale("en", "BD")).format(poisha / 100.0)
