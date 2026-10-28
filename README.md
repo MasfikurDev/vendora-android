@@ -447,6 +447,7 @@ Before merging, inspect the exact commit and CI run. A skipped instrumentation s
 - [Agent instructions](AGENTS.md) — repository rules and workflow constraints.
 - [Contribution guide](CONTRIBUTING.md) — development and pull-request expectations.
 - [Architecture principles](docs/architecture/principles.md) — design and data-integrity rules.
+- [Mermaid architecture diagrams](docs/architecture/mermaid-diagrams.md) — system/UDF flow, atomic checkout, logical ER model, and active-shop isolation.
 
 ## License
 
