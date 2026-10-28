@@ -142,7 +142,6 @@ class VendoraRepository(
         dao.deleteProduct(shopId, productId)
     }
 
-    /*
     suspend fun recordStockAdjustment(
         shopId: String,
         productId: String,
