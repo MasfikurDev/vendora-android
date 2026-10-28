@@ -46,8 +46,24 @@ class LegacyDataImporter(context: Context) {
         val shops = readLegacyShops()
         val products = readLegacyProducts()
         database.withTransaction {
-            database.vendoraDao().importShops(shops)
-            database.vendoraDao().importProducts(products)
+            val dao = database.vendoraDao()
+            dao.importShops(shops)
+            dao.importProducts(products)
+            dao.insertCatalogOptions(products.flatMap { product ->
+                listOf(
+                    CatalogOptionKind.BRAND to product.brand,
+                    CatalogOptionKind.CATEGORY to product.category,
+                    CatalogOptionKind.UNIT to product.unit,
+                ).filter { it.second.isNotBlank() }.map { (kind, value) ->
+                    CatalogOptionEntity(
+                        id = UUID.randomUUID().toString(),
+                        shopId = product.shopId,
+                        kind = kind,
+                        value = value.trim(),
+                        normalizedValue = value.trim().lowercase(java.util.Locale.ROOT),
+                    )
+                }
+            })
         }
         if (!migrationPreferences.edit().putBoolean(KEY_IMPORTED, true).commit()) {
             throw IOException("Data was imported, but the migration marker could not be saved. Retry on next launch.")
@@ -92,10 +108,28 @@ class LegacyDataImporter(context: Context) {
                 val quantity = if (item.has("quantity")) item.optInt("quantity", -1) else -1
                 val cost = if (item.has("purchasePricePoisha")) item.optLong("purchasePricePoisha", -1L) else -1L
                 val price = if (item.has("sellingPricePoisha")) item.optLong("sellingPricePoisha", -1L) else -1L
-                if (id.isBlank() || shopId.isBlank() || name.isBlank() || quantity < 0 || cost < 0L || price < 0L) {
+                val brand = item.optString("brand").trim()
+                val category = item.optString("category").trim()
+                val unit = item.optString("unit", "pcs").trim().ifBlank { "pcs" }
+                val barcode = item.optString("barcode").trim()
+                val lowStockThreshold = item.optInt("lowStockThreshold", 5)
+                if (id.isBlank() || shopId.isBlank() || name.isBlank() || quantity < 0 || cost < 0L || price < 0L || lowStockThreshold < 0) {
                     throw IOException("Saved product record $index is invalid. Original data was preserved.")
                 }
-                add(ProductEntity(id, shopId, name, sku, quantity, cost, price))
+                add(ProductEntity(
+                    id = id,
+                    shopId = shopId,
+                    name = name,
+                    sku = sku,
+                    quantity = quantity,
+                    purchasePricePoisha = cost,
+                    sellingPricePoisha = price,
+                    brand = brand,
+                    category = category,
+                    unit = unit,
+                    barcode = barcode,
+                    lowStockThreshold = lowStockThreshold,
+                ))
             }
         }
     }
