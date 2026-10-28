@@ -1,0 +1,56 @@
+name: Feature request
+description: Propose a user-focused improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vendora prioritizes offline reliability, shop-scoped data, and auditable financial/stock operations. Please describe the user problem before prescribing a solution.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Who experiences this problem and when?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed behavior
+      description: Describe the outcome you want. Implementation details are optional.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: dropdown
+    id: offline
+    attributes:
+      label: Offline behavior
+      description: How should this work without internet access?
+      options:
+        - Must work fully offline
+        - Offline with optional online enhancement
+        - Requires online access (explain why)
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Data, privacy, or migration impact
+      description: Mention effects on shop isolation, money, stock, stored data, third-party sources, or permissions.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I searched for a similar issue or pull request.
+          required: true
