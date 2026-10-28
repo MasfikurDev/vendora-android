@@ -1,44 +1,11 @@
 {
   "schemaVersion": 1,
-  "exampleShopName": "Moshiur Electronics",
-  "purpose": "Offline starter suggestions only. Do not automatically create products, prices, stock counts, sales, or inventory for the example shop.",
-  "sourceNotes": {
-    "brandNames": "Initial names supplied by a Vendora user as examples of brands carried by a Bangladeshi home-appliance retailer; not a complete or official brand registry.",
-    "verifiedExamples": [
-      {
-        "brand": "VISION",
-        "url": "https://vision.com.bd/kitchen-appliances/all",
-        "note": "Official VISION product catalog confirms rice cookers, induction cookers, kettles and blenders."
-      },
-      {
-        "brand": "VIGO",
-        "url": "https://vigoelectronics.com/about",
-        "note": "Official VIGO Electronics page describes home and kitchen appliances and identifies VIGO as a brand of RFL Electronics Limited."
-      },
-      {
-        "brand": "Jamuna",
-        "url": "https://www.estorejamuna.com/about",
-        "note": "Official Jamuna Electronics page lists rice cookers, blenders, electric kettles, irons and induction/infrared cookers."
-      }
-    ],
-    "pricing": "No prices, costs, stock quantities, SKU values, barcodes, warranties or product images are supplied. Users must enter and verify their own values.",
-    "images": "No third-party product images are bundled."
-  },
+  "purpose": "Offline starter suggestions only. Do not automatically create products, prices, stock counts, sales, or inventory.",
   "shopTypeIds": [
     "electronics_home_appliances",
     "electronics"
   ],
-  "brands": [
-    "VISION",
-    "KIAM",
-    "Prestige",
-    "RFL",
-    "Hawkins",
-    "Minister",
-    "VIGO",
-    "Jaipan",
-    "Jamuna"
-  ],
+  "brands": [],
   "categories": [
     "Rice cooker",
     "Electric iron",
