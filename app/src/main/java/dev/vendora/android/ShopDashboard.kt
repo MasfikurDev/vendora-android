@@ -331,7 +331,7 @@ private fun OverviewContent(
                         Text("SHOP WORKSPACE", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall)
                     }
                     Surface(color = Color.White.copy(alpha = 0.16f), shape = RoundedCornerShape(100.dp)) {
-                        Text("Offline ready", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall)
+                        Text("YOUR BUSINESS", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall)
                     }
                 }
                 HorizontalDivider(color = Color.White.copy(alpha = 0.22f))
