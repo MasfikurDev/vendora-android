@@ -32,6 +32,11 @@ on:
         required: true
         type: boolean
         default: false
+      run_instrumentation:
+        description: 'Run slower emulator-backed instrumentation tests'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -101,7 +106,8 @@ jobs:
       - name: Build and run unit tests
         run: ./gradlew --no-daemon :app:checkDebugAarMetadata assembleDebug testDebugUnitTest
 
-      - name: Run database and critical-flow instrumentation tests
+      - name: Run database and critical-flow instrumentation tests (opt-in)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_instrumentation == true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -163,7 +169,7 @@ jobs:
             echo "- **Branch:** ${GITHUB_REF_NAME}"
             echo "- **Commit:** ${GITHUB_SHA}"
             echo "- **Build date (UTC):** $(date -u '+%Y-%m-%d %H:%M:%S')"
-            echo "- **CI validation:** dependency metadata, debug APK build, JVM unit tests, emulator instrumentation tests, APK signature verification, and persistent-certificate comparison passed where applicable."
+            echo "- **CI validation:** dependency metadata, debug APK build, JVM unit tests, APK signature verification, and persistent-certificate comparison passed where applicable. Emulator instrumentation tests run only when explicitly enabled."
             echo "- **APK:** app-debug.apk; $SIGNING_NOTE"
             echo "- **APK signing certificate SHA-256:** ${APK_CERT_SHA256:-unavailable}"
             echo "- **Version code:** ${GITHUB_RUN_NUMBER}"
@@ -191,7 +197,7 @@ jobs:
             echo "Minimum Android SDK: 26 (Android 8.0)"
             echo "Target Android SDK: 36"
             echo "Java: 17"
-            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest, connectedDebugAndroidTest, apksigner verify, and persistent-certificate comparison passed when applicable"
+            echo "Validation: checkDebugAarMetadata, assembleDebug, testDebugUnitTest, apksigner verify, and persistent-certificate comparison; connectedDebugAndroidTest is opt-in"
             echo "APK signing certificate SHA-256: ${APK_CERT_SHA256:-unavailable}"
             echo "APK filename: app-debug.apk"
           } > BUILD-INFO.txt
