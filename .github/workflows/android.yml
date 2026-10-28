@@ -2,8 +2,7 @@ name: Android CI and Release Builds
 
 on:
   push:
-    branches:
-      - '**'
+    branches: [main]
     paths:
       - 'app/**'
       - 'gradle/**'
