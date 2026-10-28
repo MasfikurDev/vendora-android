@@ -2,12 +2,27 @@ package dev.vendora.android
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
 import androidx.room.withTransaction
+import androidx.sqlite.db.SupportSQLiteDatabase
 import org.json.JSONArray
 import java.io.IOException
 import java.util.UUID
 
 object VendoraDatabaseProvider {
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE products ADD COLUMN brand TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE products ADD COLUMN unit TEXT NOT NULL DEFAULT 'pcs'")
+            database.execSQL("ALTER TABLE products ADD COLUMN barcode TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE products ADD COLUMN lowStockThreshold INTEGER NOT NULL DEFAULT 5")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_products_shopId_barcode ON products (shopId, barcode)")
+            database.execSQL("CREATE TABLE IF NOT EXISTS catalog_options (id TEXT NOT NULL, shopId TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, normalizedValue TEXT NOT NULL, PRIMARY KEY(id))")
+            database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_catalog_options_shopId_kind_normalizedValue ON catalog_options (shopId, kind, normalizedValue)")
+        }
+    }
+
     @Volatile private var instance: VendoraDatabase? = null
 
     fun get(context: Context): VendoraDatabase =
@@ -16,7 +31,7 @@ object VendoraDatabaseProvider {
                 context.applicationContext,
                 VendoraDatabase::class.java,
                 "vendora.db",
-            ).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2).build().also { instance = it }
         }
 }
 
@@ -88,6 +103,12 @@ class LegacyDataImporter(context: Context) {
     private companion object { const val KEY_IMPORTED = "legacy_json_imported_v1" }
 }
 
+object CatalogOptionKind {
+    const val BRAND = "brand"
+    const val CATEGORY = "category"
+    const val UNIT = "unit"
+}
+
 class VendoraRepository(
     internal val database: VendoraDatabase,
 ) {
@@ -118,6 +139,26 @@ class VendoraRepository(
         return dao.getProducts(shopId)
     }
 
+    suspend fun getCatalogOptions(shopId: String, kind: String): List<String> {
+        require(shopId.isNotBlank()) { "A shop is required." }
+        require(kind in setOf(CatalogOptionKind.BRAND, CatalogOptionKind.CATEGORY, CatalogOptionKind.UNIT)) {
+            "Unsupported catalog option type."
+        }
+        return dao.getCatalogOptions(shopId, kind).map { it.value }
+    }
+
+    private suspend fun saveCatalogOption(shopId: String, kind: String, rawValue: String) {
+        val value = rawValue.trim()
+        if (value.isBlank()) return
+        dao.insertCatalogOptions(listOf(CatalogOptionEntity(
+            id = UUID.randomUUID().toString(),
+            shopId = shopId,
+            kind = kind,
+            value = value,
+            normalizedValue = value.lowercase(java.util.Locale.ROOT),
+        )))
+    }
+
     suspend fun getProduct(shopId: String, productId: String): ProductEntity? {
         require(shopId.isNotBlank() && productId.isNotBlank()) { "A shop and product are required." }
         return dao.getProduct(shopId, productId)
@@ -127,7 +168,14 @@ class VendoraRepository(
         require(product.shopId.isNotBlank() && product.name.isNotBlank()) { "A shop and product name are required." }
         require(product.quantity >= 0) { "Stock cannot be negative." }
         require(product.purchasePricePoisha >= 0L && product.sellingPricePoisha >= 0L) { "Prices cannot be negative." }
-        val normalized = product.copy(name = product.name.trim(), sku = product.sku.trim())
+        val normalized = product.copy(
+            name = product.name.trim(),
+            sku = product.sku.trim(),
+            brand = product.brand.trim(),
+            category = product.category.trim(),
+            unit = product.unit.trim().ifBlank { "pcs" },
+            barcode = product.barcode.trim(),
+        )
         database.withTransaction {
             val duplicateSku = dao.getProducts(normalized.shopId).any {
                 it.id != normalized.id && normalized.sku.isNotBlank() &&
@@ -166,6 +214,9 @@ class VendoraRepository(
                 }
                 dao.updateProduct(normalized)
             }
+            saveCatalogOption(normalized.shopId, CatalogOptionKind.BRAND, normalized.brand)
+            saveCatalogOption(normalized.shopId, CatalogOptionKind.CATEGORY, normalized.category)
+            saveCatalogOption(normalized.shopId, CatalogOptionKind.UNIT, normalized.unit)
         }
     }
 
