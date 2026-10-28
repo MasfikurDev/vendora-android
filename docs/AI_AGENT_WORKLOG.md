@@ -77,7 +77,7 @@ Prefer GitHub auto-merge only when available and when the exact latest PR head h
 - Added persistent debug certificate fingerprint comparison to the Android workflow.
 - Added emulator-backed instrumentation tests for checkout stock deduction, insufficient-stock rollback, and shop-scoped product/SKU validation.
 - Updated README and project status to match the Room implementation and actual manual feature-branch workflow.
-- Run #251 passed for the prior PR head: build, JVM tests, persistent signing-certificate comparison, and artifact upload succeeded; emulator instrumentation was skipped as configured. The physical-device update test remains unverified. A later workflow-only optimization must be verified against its own run.
+- Run #252 passed workflow commit `b19d9aec2c961a88f13e04425c1d0249d6e7feb8`: build, JVM tests, instrumentation-test source compilation, persistent signing-certificate comparison, and artifact upload succeeded; emulator instrumentation was skipped as configured. The physical-device update test remains unverified.
 
 Older worklog entries claimed automatic feature-branch push prereleases and described Room as future work. Those are historical states, not the current workflow or architecture.
 
