@@ -1,6 +1,6 @@
 # Vendora AI Agent Worklog and Troubleshooting
 
-Last updated: **2026-10-24**
+Last updated: **2026-10-28**
 
 This is a durable handoff for coding agents working on Vendora. It records observed repository-specific pitfalls and the verified handling for them. It is not a substitute for inspecting the current source, workflow files, pull requests, and CI runs.
 
@@ -23,23 +23,23 @@ This is a durable handoff for coding agents working on Vendora. It records obser
 
 **Handling:** Read the README and status document from the same ref; compare them with source and PR state. Correct stale statements and preserve a dated transition entry. Do not assume an open PR's contents are already on `main`.
 
-### SharedPreferences/JSON is interim storage, not Room
+### Room is current persistence; SharedPreferences/JSON is legacy import only
 
-**Problem:** Documentation can easily make the planned architecture sound implemented.
+**Problem:** The README and status docs lagged behind the Room implementation on main.
 
-**Handling:** State explicitly which ref contains the current shop/product persistence implementation. SharedPreferences + JSON is interim storage; Room/SQLite, DAOs, migrations, and database tests remain future work until code and tests confirm otherwise. Do not build later financial workflows on an assumed Room implementation.
+**Handling:** Current source includes Room entities/DAO/repository, sale snapshots, stock movements, and a one-time legacy SharedPreferences/JSON importer. Room schema is version 1; do not imply migration tests or forward schema migrations are complete. Keep original legacy data preserved when import validation fails.
 
 ### CI status and release publishing are different concerns
 
 **Problem:** A successful main-branch build can be mistaken for a successful PR check, and a debug beta APK can be mistaken for a production release.
 
-**Handling:** Check the workflow run for the exact PR head SHA. The documented workflow policy is that pushes to any branch and PR checks run CI, while only a successful push to `main` should publish a beta prerelease. The beta artifact is a debug APK, not a signed production build. Re-verify workflow configuration and current run status before making a new claim.
+**Handling:** Check the workflow run for the exact PR head SHA. The workflow runs on pushes to branches and PRs targeting `main`; a feature prerelease is published only by a successful non-main push whose commit message contains `[phone-test]` (or a manual dispatch with the publish input), while the main beta requires manual dispatch on `main`. The beta artifact is a debug APK, not a signed production build. Re-verify workflow configuration and current run status before making a new claim.
 
 ### UI/instrumentation coverage is not implied by a successful JVM build
 
 **Problem:** Passing unit tests and assembling the APK do not prove critical UI flows work on a device or emulator.
 
-**Handling:** Report JVM unit tests, APK assembly, and instrumentation/UI tests separately. Instrumentation tests are not considered CI-covered unless an emulator/device job is configured and its run passes.
+**Handling:** Report JVM unit tests, APK assembly, instrumentation source compilation, and instrumentation execution separately. Compiling Android tests catches test-source errors but does not prove runtime behavior; execution needs an emulator/device job.
 
 ### Shop isolation must be tested explicitly
 
@@ -84,3 +84,10 @@ This log currently records repository-specific lessons confirmed from Vendora's 
 - CI runs `40102203101` (push) and `40102207210` (pull request) were observed in progress for this exact SHA during the update. Do not report the new workflow as verified or claim a feature release exists until the run is complete and the Releases page confirms publication.
 - This supersedes the older sentence in this worklog that says feature-branch pushes and PR checks should never publish releases. PR checks themselves do not publish releases; the separate push event to a feature branch is what invokes the feature prerelease step.
 - Feature releases are debug previews, not signed production builds. Check the exact branch, SHA, run conclusion, and published tag before sharing a build.
+
+
+## Checkout integrity tests — 2026-10-28
+
+- Added instrumentation cases for successful multi-item checkout, insufficient-stock rollback with no partial sale/stock writes, and cross-shop product access rejection on `fix/checkout-integrity-prerelease`.
+- CI should compile Android instrumentation test Kotlin sources without requiring an emulator. This is compilation coverage only; run the tests on a device/emulator before claiming runtime verification.
+- Documentation was refreshed because main already contained Room and checkout behavior while the previous README/status text still described the pre-Room state.
