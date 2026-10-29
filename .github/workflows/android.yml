@@ -241,6 +241,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-preview-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
           name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
           body_path: artifacts/RELEASE-NOTES.md
           files: |
@@ -273,6 +274,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-beta-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
           name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
           body_path: artifacts/RELEASE-NOTES.md
           files: |
