@@ -36,6 +36,7 @@ Use an 8 dp spacing rhythm where practical, 12–20 dp corner radii, and touch t
 ### Home / Overview
 
 - Show the selected shop and a concise inventory/business overview.
+- Make the primary **Start selling** action immediately available from Overview; keep Add product and Inventory as secondary actions.
 - Prefer verified values available from Room, such as product count, units, stock cost, and low-stock items.
 - Sales totals, gross profit, recent sales, and time-series charts must remain absent or clearly unavailable until backed by persisted sales data and correct aggregation.
 - Low-stock rows should navigate to inventory and show the actual quantity.

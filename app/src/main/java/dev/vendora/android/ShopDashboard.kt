@@ -132,6 +132,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                 potentialSales = potentialSales,
                 lowStock = lowStock,
                 onViewInventory = { section = ShopSection.Products },
+                onStartSelling = { section = ShopSection.Selling },
                 onAddProduct = { editing = null; error = null; showEditor = true },
                 onSelectProduct = { editing = it; error = null; showEditor = true },
             )
@@ -350,20 +351,46 @@ private fun SellingContent(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = androidx.compose.foundation.BorderStroke(1.dp, DashboardOutline),
         ) {
-            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Cart total", style = MaterialTheme.typography.labelMedium, color = DashboardMuted)
-                    Text(formatBdt(total), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = DashboardGreen)
-                    Text("${selected.size} product line(s)", style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
+            Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (selected.isNotEmpty()) {
+                    Text("Cart", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    selected.take(3).forEach { product ->
+                        val quantity = quantities[product.id] ?: 0
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(product.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1)
+                                Text("${quantity} × ${formatBdt(product.sellingPricePoisha)}", style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
+                            }
+                            Text(formatBdt(product.sellingPricePoisha * quantity.toLong()), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            TextButton(
+                                onClick = { onQuantityChange(product, quantity - 1) },
+                                enabled = !busy,
+                                contentPadding = PaddingValues(start = 8.dp, end = 0.dp),
+                            ) { Text("Remove") }
+                        }
+                    }
+                    if (selected.size > 3) {
+                        Text("And ${selected.size - 3} more product line(s)", style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
+                    }
+                    HorizontalDivider(color = DashboardOutline)
+                } else {
+                    Text("Cart is empty", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text("Add products above to start a sale.", style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
                 }
-                Button(
-                    onClick = onCheckout,
-                    enabled = selected.isNotEmpty() && !busy,
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(14.dp),
-                ) {
-                    if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    else Text("Complete sale")
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Total", style = MaterialTheme.typography.labelMedium, color = DashboardMuted)
+                        Text(formatBdt(total), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = DashboardGreen)
+                    }
+                    Button(
+                        onClick = onCheckout,
+                        enabled = selected.isNotEmpty() && !busy,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text("Complete sale")
+                    }
                 }
             }
         }
@@ -455,6 +482,7 @@ private fun OverviewContent(
     potentialSales: Long,
     lowStock: List<Product>,
     onViewInventory: () -> Unit,
+    onStartSelling: () -> Unit,
     onAddProduct: () -> Unit,
     onSelectProduct: (Product) -> Unit,
 ) {
@@ -483,7 +511,7 @@ private fun OverviewContent(
                         Text("SHOP WORKSPACE", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall)
                     }
                     Surface(color = Color.White.copy(alpha = 0.16f), shape = RoundedCornerShape(100.dp)) {
-                        Text("Offline ready", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall)
+                        Text("YOUR BUSINESS", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 HorizontalDivider(color = Color.White.copy(alpha = 0.22f))
@@ -531,8 +559,16 @@ private fun OverviewContent(
             }
         }
 
+        Button(
+            onClick = onStartSelling,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Text("Start selling", fontWeight = FontWeight.SemiBold)
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = onAddProduct, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp)) {
+            OutlinedButton(onClick = onAddProduct, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp)) {
                 Text("+  Add product")
             }
             OutlinedButton(onClick = onViewInventory, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp)) {
