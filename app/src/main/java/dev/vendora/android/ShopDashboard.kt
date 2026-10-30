@@ -20,6 +20,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 private val DashboardGreen = Color(0xFF145945)
@@ -33,6 +35,7 @@ private enum class ShopSection(val label: String) {
     Overview("Overview"),
     Products("Products"),
     Selling("Selling"),
+    Activity("Activity"),
     Insights("Insights"),
 }
 
@@ -41,8 +44,11 @@ private enum class ShopSection(val label: String) {
 fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     var products by remember(shop.id) { mutableStateOf(emptyList<Product>()) }
+    var saleLines by remember(shop.id) { mutableStateOf(emptyList<SaleLineEntity>()) }
+    suspend fun refreshSales() { saleLines = repository.getSaleLines(shop.id) }
     LaunchedEffect(shop.id) {
         products = repository.getProducts(shop.id).map { it.toProduct() }
+        refreshSales()
     }
     var section by remember { mutableStateOf(ShopSection.Overview) }
     var query by remember { mutableStateOf("") }
@@ -103,6 +109,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                                     ShopSection.Overview -> "⌂"
                                     ShopSection.Products -> "▦"
                                     ShopSection.Selling -> "＋"
+                                    ShopSection.Activity -> "◷"
                                     ShopSection.Insights -> "↗"
                                 },
                                 style = MaterialTheme.typography.titleLarge,
@@ -166,6 +173,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                             }
                             val result = repository.checkout(shop.id, lines)
                             products = repository.getProducts(shop.id).map { it.toProduct() }
+                            refreshSales()
                             cartQuantities = emptyMap()
                             checkoutSuccess = "Sale recorded. Total: ${formatBdt(result.totalPoisha)}"
                         } catch (failure: Exception) {
@@ -175,6 +183,10 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                         }
                     }
                 },
+            )
+            ShopSection.Activity -> SalesHistoryContent(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                saleLines = saleLines,
             )
             ShopSection.Insights -> InsightsContent(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -352,6 +364,81 @@ private fun SellingContent(
                 ) {
                     if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                     else Text("Complete sale")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SalesHistoryContent(
+    modifier: Modifier,
+    saleLines: List<SaleLineEntity>,
+) {
+    val totalRecorded = saleLines.sumOf { it.totalPoisha }
+    Column(modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Text("Sales history", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text(
+            "${saleLines.size} recorded product line(s) · ${formatBdt(totalRecorded)} total",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(14.dp))
+        if (saleLines.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("No sales yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Completed sales will appear here automatically.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 24.dp),
+            ) {
+                items(saleLines, key = { it.id }) { sale ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(7.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(sale.productName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                    if (sale.sku.isNotBlank()) {
+                                        Text("SKU: ${sale.sku}", style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
+                                    }
+                                }
+                                Text(
+                                    formatBdt(sale.totalPoisha),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = DashboardGreen,
+                                )
+                            }
+                            Text(
+                                "${sale.quantity} × ${formatBdt(sale.unitPricePoisha)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault()).format(Date(sale.timestampMillis)),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DashboardMuted,
+                            )
+                        }
+                    }
                 }
             }
         }

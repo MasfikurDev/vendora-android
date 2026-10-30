@@ -191,6 +191,25 @@ class VendoraCheckoutInstrumentedTest {
         assertEquals("recovered-shop", repository.getShops().single().id)
     }
 
+    @Test
+    fun salesHistoryReturnsOnlyTheSelectedShopsRecords() = runBlocking {
+        seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 4)
+        seedShopAndProduct(shopId = "shop-b", productId = "product-b", quantity = 6)
+
+        repository.checkout("shop-a", listOf(CheckoutLine("product-a", 1)), timestampMillis = 100L)
+        repository.checkout("shop-b", listOf(CheckoutLine("product-b", 2)), timestampMillis = 200L)
+
+        val shopASales = repository.getSaleLines("shop-a")
+        val shopBSales = repository.getSaleLines("shop-b")
+
+        assertEquals(1, shopASales.size)
+        assertEquals("product-a", shopASales.single().productId)
+        assertEquals(1, shopASales.single().quantity)
+        assertEquals(1, shopBSales.size)
+        assertEquals("product-b", shopBSales.single().productId)
+        assertEquals(2, shopBSales.single().quantity)
+    }
+
     private suspend fun seedShopAndProduct(shopId: String, productId: String, quantity: Int) {
         if (dao.getShops().none { it.id == shopId }) {
             dao.insertShop(ShopEntity(shopId, shopId, "General"))
