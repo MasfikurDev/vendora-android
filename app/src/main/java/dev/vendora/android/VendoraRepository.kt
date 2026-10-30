@@ -151,18 +151,8 @@ class VendoraRepository(
                     )))
                 }
             } else {
-                if (existing.quantity != normalized.quantity) {
-                    dao.insertStockMovements(listOf(StockMovementEntity(
-                        id = UUID.randomUUID().toString(),
-                        shopId = normalized.shopId,
-                        productId = normalized.id,
-                        productName = normalized.name,
-                        delta = normalized.quantity - existing.quantity,
-                        quantityBefore = existing.quantity,
-                        quantityAfter = normalized.quantity,
-                        reason = "Inventory edit",
-                        timestampMillis = timestampMillis,
-                    )))
+                require(existing.quantity == normalized.quantity) {
+                    "Use the audited stock adjustment flow to change inventory quantity."
                 }
                 dao.updateProduct(normalized)
             }

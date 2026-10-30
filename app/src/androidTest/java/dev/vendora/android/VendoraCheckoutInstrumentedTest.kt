@@ -121,6 +121,19 @@ class VendoraCheckoutInstrumentedTest {
     }
 
     @Test
+    fun saveProductCannotChangeExistingStockOutsideAuditedAdjustment() = runBlocking {
+        seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 5)
+        val existing = dao.getProduct("shop-a", "product-a")!!
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.saveProduct(existing.copy(quantity = 2)) }
+        }
+
+        assertEquals(5, dao.getProduct("shop-a", "product-a")?.quantity)
+        assertTrue(dao.getStockMovements("shop-a").isEmpty())
+    }
+
+    @Test
     fun stockAdjustmentUpdatesQuantityAndRecordsReasonAndBeforeAfterValues() = runBlocking {
         seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 5)
 
