@@ -1,30 +1,35 @@
 name: Android CI and Release Builds
 
 on:
+  # Main is the integration branch. Successful code pushes publish a beta.
   push:
     branches: [main]
     paths:
       - 'app/**'
       - 'gradle/**'
+      - 'buildSrc/**'
       - '**/*.gradle'
       - '**/*.gradle.kts'
       - 'gradlew'
       - 'gradle.properties'
       - 'settings.gradle*'
       - 'build.gradle*'
-      - '.github/workflows/android.yml'
+      - '.github/workflows/**'
+  # Validate PR merge commits and upload a test APK; never publish a release here.
   pull_request:
     branches: [main]
     paths:
       - 'app/**'
       - 'gradle/**'
+      - 'buildSrc/**'
       - '**/*.gradle'
       - '**/*.gradle.kts'
       - 'gradlew'
       - 'gradle.properties'
       - 'settings.gradle*'
       - 'build.gradle*'
-      - '.github/workflows/android.yml'
+      - '.github/workflows/**'
+  # Manual PREVIEW publication from a feature branch, or an intentional beta rerun.
   workflow_dispatch:
     inputs:
       publish_release:
@@ -41,9 +46,11 @@ on:
 permissions:
   contents: read
 
+# Cancel obsolete PR validation when a newer commit arrives. Never cancel main
+# integration builds or manual release runs.
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
@@ -242,8 +249,13 @@ jobs:
         with:
           tag_name: v0.1.0-preview-${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
+          name: '[PREVIEW] Vendora — ${{ github.ref_name }} #${{ github.run_number }}'
           body_path: artifacts/RELEASE-NOTES.md
+          append_body: true
+          body: |
+            ## Release channel: PREVIEW
+            Feature-branch build for evaluation only. Not a main-branch beta and not a stable release. May be incomplete or incompatible with future builds.
+          make_latest: false
           files: |
             artifacts/app-debug.apk
             artifacts/SHA256SUMS.txt
@@ -257,7 +269,7 @@ jobs:
   publish-main-beta:
     name: Publish main beta
     needs: verify
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -273,10 +285,15 @@ jobs:
       - name: Publish main beta release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-beta-${{ github.run_number }}
+          tag_name: v0.1.0-beta.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
+          name: '[BETA] Vendora 0.1.0 — Build #${{ github.run_number }}'
           body_path: artifacts/RELEASE-NOTES.md
+          append_body: true
+          body: |
+            ## Release channel: BETA
+            Built from the main branch after CI passed. Intended for broader testing; may contain unfinished features. This is not a stable release.
+          make_latest: false
           files: |
             artifacts/app-debug.apk
             artifacts/SHA256SUMS.txt
