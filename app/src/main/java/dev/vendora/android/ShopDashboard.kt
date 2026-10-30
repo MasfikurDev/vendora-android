@@ -813,7 +813,22 @@ private fun ProductEditorDialog(
             ) {
                 OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Product name *") }, singleLine = true)
                 OutlinedTextField(sku, { sku = it }, modifier = Modifier.fillMaxWidth(), label = { Text("SKU (optional)") }, singleLine = true)
-                OutlinedTextField(quantity, { quantity = it.filter(Char::isDigit) }, modifier = Modifier.fillMaxWidth(), label = { Text("Stock quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                if (initial == null) {
+                    OutlinedTextField(
+                        quantity,
+                        { quantity = it.filter(Char::isDigit) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Opening stock quantity") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                    )
+                } else {
+                    Text(
+                        "Current stock: ${initial.quantity} units. Use Adjust stock to record any quantity change.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = DashboardMuted,
+                    )
+                }
                 OutlinedTextField(purchase, { purchase = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Purchase price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 OutlinedTextField(selling, { selling = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Selling price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
