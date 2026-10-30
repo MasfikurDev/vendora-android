@@ -123,6 +123,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                 potentialSales = potentialSales,
                 lowStock = lowStock,
                 onViewInventory = { section = ShopSection.Products },
+                onStartSelling = { section = ShopSection.Selling },
                 onAddProduct = { editing = null; error = null; showEditor = true },
                 onSelectProduct = { editing = it; error = null; showEditor = true },
             )
@@ -348,6 +349,7 @@ private fun OverviewContent(
     potentialSales: Long,
     lowStock: List<Product>,
     onViewInventory: () -> Unit,
+    onStartSelling: () -> Unit,
     onAddProduct: () -> Unit,
     onSelectProduct: (Product) -> Unit,
 ) {
@@ -376,7 +378,7 @@ private fun OverviewContent(
                         Text("SHOP WORKSPACE", color = Color.White.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall)
                     }
                     Surface(color = Color.White.copy(alpha = 0.16f), shape = RoundedCornerShape(100.dp)) {
-                        Text("Offline ready", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall)
+                        Text("YOUR BUSINESS", color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
                     }
                 }
                 HorizontalDivider(color = Color.White.copy(alpha = 0.22f))
@@ -424,8 +426,16 @@ private fun OverviewContent(
             }
         }
 
+        Button(
+            onClick = onStartSelling,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Text("Start selling", fontWeight = FontWeight.SemiBold)
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = onAddProduct, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp)) {
+            OutlinedButton(onClick = onAddProduct, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp)) {
                 Text("+  Add product")
             }
             OutlinedButton(onClick = onViewInventory, modifier = Modifier.weight(1f).height(52.dp), shape = RoundedCornerShape(16.dp)) {
