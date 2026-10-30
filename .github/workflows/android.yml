@@ -242,8 +242,13 @@ jobs:
         with:
           tag_name: v0.1.0-preview-${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          name: Vendora Phone Test — ${{ github.ref_name }} #${{ github.run_number }}
+          name: '[PREVIEW] Vendora — ${{ github.ref_name }} #${{ github.run_number }}'
           body_path: artifacts/RELEASE-NOTES.md
+          append_body: true
+          body: |
+            ## Release channel: PREVIEW
+            Feature-branch build for evaluation only. Not a main-branch beta and not a stable release. May be incomplete or incompatible with future builds.
+          make_latest: false
           files: |
             artifacts/app-debug.apk
             artifacts/SHA256SUMS.txt
@@ -273,10 +278,15 @@ jobs:
       - name: Publish main beta release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.0-beta-${{ github.run_number }}
+          tag_name: v0.1.0-beta.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          name: Vendora Beta 0.1.0 — Build ${{ github.run_number }}
+          name: '[BETA] Vendora 0.1.0 — Build #${{ github.run_number }}'
           body_path: artifacts/RELEASE-NOTES.md
+          append_body: true
+          body: |
+            ## Release channel: BETA
+            Built from the main branch after CI passed. Intended for broader testing; may contain unfinished features. This is not a stable release.
+          make_latest: false
           files: |
             artifacts/app-debug.apk
             artifacts/SHA256SUMS.txt
