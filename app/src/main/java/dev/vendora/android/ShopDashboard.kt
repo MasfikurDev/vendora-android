@@ -52,6 +52,8 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
     var editing by remember { mutableStateOf<Product?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var productPendingDelete by remember { mutableStateOf<Product?>(null) }
+    var stockAdjustmentProduct by remember { mutableStateOf<Product?>(null) }
+    var stockAdjustmentError by remember { mutableStateOf<String?>(null) }
     var cartQuantities by remember(shop.id) { mutableStateOf(emptyMap<String, Int>()) }
     var checkoutBusy by remember { mutableStateOf(false) }
     var checkoutError by remember { mutableStateOf<String?>(null) }
@@ -136,6 +138,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                 onAddProduct = { editing = null; error = null; showEditor = true },
                 onEdit = { editing = it; error = null; showEditor = true },
                 onDelete = { productPendingDelete = it },
+                onAdjustStock = { stockAdjustmentProduct = it; stockAdjustmentError = null },
             )
             ShopSection.Selling -> SellingContent(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -183,6 +186,23 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                 lowStock = lowStock,
             )
         }
+    }
+
+    stockAdjustmentProduct?.let { product ->
+        StockAdjustmentDialog(
+            product = product,
+            error = stockAdjustmentError,
+            onDismiss = { stockAdjustmentProduct = null },
+            onSave = { quantity, reason ->
+                scope.launch {
+                    runCatching {
+                        repository.recordStockAdjustment(shop.id, product.id, quantity, reason)
+                        products = repository.getProducts(shop.id).map { it.toProduct() }
+                        stockAdjustmentProduct = null
+                    }.onFailure { stockAdjustmentError = it.message ?: "Could not adjust stock." }
+                }
+            },
+        )
     }
 
     productPendingDelete?.let { product ->
@@ -448,6 +468,7 @@ private fun InventoryContent(
     onAddProduct: () -> Unit,
     onEdit: (Product) -> Unit,
     onDelete: (Product) -> Unit,
+    onAdjustStock: (Product) -> Unit,
 ) {
     val filteredProducts = products.filter { product ->
         (product.name.contains(query, true) || product.sku.contains(query, true)) &&
@@ -533,6 +554,7 @@ private fun InventoryContent(
                                 }
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                TextButton(onClick = { onAdjustStock(product) }) { Text("Adjust stock") }
                                 TextButton(onClick = { onEdit(product) }) { Text("Edit") }
                                 TextButton(onClick = { onDelete(product) }, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Delete") }
                             }
@@ -597,6 +619,50 @@ private fun EmptyInventoryCard(onAddProduct: () -> Unit) {
             Button(onClick = onAddProduct) { Text("Add first product") }
         }
     }
+}
+
+
+@Composable
+private fun StockAdjustmentDialog(
+    product: Product,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSave: (Int, String) -> Unit,
+) {
+    var quantity by remember(product.id) { mutableStateOf(product.quantity.toString()) }
+    var reason by remember(product.id) { mutableStateOf("") }
+    val parsedQuantity = quantity.toIntOrNull()
+    val valid = parsedQuantity != null && parsedQuantity >= 0 && reason.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Adjust ${product.name} stock", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Current stock: ${product.quantity}")
+                OutlinedTextField(
+                    value = quantity,
+                    onValueChange = { quantity = it.filter(Char::isDigit).take(9) },
+                    label = { Text("New quantity") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text("Reason (required)") },
+                    placeholder = { Text("e.g. Damaged, lost, restocked, count correction") },
+                    singleLine = true,
+                )
+                Text("This change will be recorded in stock history.", style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { parsedQuantity?.let { onSave(it, reason.trim()) } }, enabled = valid) { Text("Save adjustment") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

@@ -121,6 +121,44 @@ class VendoraCheckoutInstrumentedTest {
     }
 
     @Test
+    fun stockAdjustmentUpdatesQuantityAndRecordsReasonAndBeforeAfterValues() = runBlocking {
+        seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 5)
+
+        repository.recordStockAdjustment(
+            shopId = "shop-a",
+            productId = "product-a",
+            newQuantity = 2,
+            reason = "Damaged items",
+            timestampMillis = 250L,
+        )
+
+        assertEquals(2, dao.getProduct("shop-a", "product-a")?.quantity)
+        val movement = dao.getStockMovements("shop-a").single()
+        assertEquals(-3, movement.delta)
+        assertEquals(5, movement.quantityBefore)
+        assertEquals(2, movement.quantityAfter)
+        assertEquals("Damaged items", movement.reason)
+        assertEquals(250L, movement.timestampMillis)
+    }
+
+    @Test
+    fun stockAdjustmentCannotChangeAnotherShopsProduct() = runBlocking {
+        seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 5)
+        seedShopAndProduct(shopId = "shop-b", productId = "product-b", quantity = 8)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                repository.recordStockAdjustment("shop-a", "product-b", 1, "Correction")
+            }
+        }
+
+        assertEquals(5, dao.getProduct("shop-a", "product-a")?.quantity)
+        assertEquals(8, dao.getProduct("shop-b", "product-b")?.quantity)
+        assertTrue(dao.getStockMovements("shop-a").isEmpty())
+        assertTrue(dao.getStockMovements("shop-b").isEmpty())
+    }
+
+    @Test
     fun legacyImportIsIdempotentAndPreservesOriginalJson() = runBlocking {
         val shopsJson = """[{"id":"legacy-shop","name":"Legacy Shop","businessType":"General"}]"""
         val productsJson = """[{"id":"legacy-product","shopId":"legacy-shop","name":"Legacy Product","sku":"LEG-1","quantity":2,"purchasePricePoisha":100,"sellingPricePoisha":200}]"""
