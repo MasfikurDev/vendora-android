@@ -1,14 +1,35 @@
 name: Android CI and Release Builds
 
 on:
-  # Every commit reaching main produces a verified beta APK and GitHub prerelease.
-  # Deliberately no path filters: app behavior, resources, docs/config, and workflow
-  # changes must not silently skip the main-branch build/release pipeline.
+  # Main is the integration branch. Successful code pushes publish a beta.
   push:
     branches: [main]
-  # PRs targeting main are validation-only; publishing jobs are push/dispatch gated.
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'buildSrc/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'gradlew'
+      - 'gradle.properties'
+      - 'settings.gradle*'
+      - 'build.gradle*'
+      - '.github/workflows/**'
+  # Validate PR merge commits and upload a test APK; never publish a release here.
   pull_request:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'buildSrc/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'gradlew'
+      - 'gradle.properties'
+      - 'settings.gradle*'
+      - 'build.gradle*'
+      - '.github/workflows/**'
+  # Manual PREVIEW publication from a feature branch, or an intentional beta rerun.
   workflow_dispatch:
     inputs:
       publish_release:
@@ -25,7 +46,11 @@ on:
 permissions:
   contents: read
 
-# Do not cancel or replace queued main builds: each main commit must get its own APK.
+# Cancel obsolete PR validation when a newer commit arrives. Never cancel main
+# integration builds or manual release runs.
+concurrency:
+  group: android-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
