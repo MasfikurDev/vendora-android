@@ -18,6 +18,22 @@ These instructions apply to the whole repository unless a closer `AGENTS.md` ove
 - When source, project status, architecture, CI, or release behavior changes, update relevant documentation in the same change. Preserve a dated transition history where old statements could otherwise be confusing.
 - When blocked, record the exact error, affected step, branch/SHA, and verified next action. Do not invent fixes or expose credentials.
 
+## Repository map and current implementation
+
+Use the source as the authority; these paths were verified on `main` during the 2026-11-02 repository review:
+- `app/src/main/java/dev/vendora/android/VendoraDatabase.kt`: Room entities, DAO, database version, and database builder.
+- `VendoraRepository.kt`: shop/product persistence, SKU validation, legacy JSON import, and stock adjustments.
+- `VendoraCheckout.kt`: transactional checkout and sale-line/stock-movement writes.
+- `VendoraModels.kt`: entity-to-domain mappings.
+- `ShopDashboard.kt`: Compose shop navigation, inventory, selling, activity, insights, and product editor.
+- `ProductStore.kt` and `ShopStore.kt`: legacy SharedPreferences stores/import sources; do not assume they are the active Room source of truth.
+- `app/src/androidTest/java/dev/vendora/android/VendoraCheckoutInstrumentedTest.kt`: Room-backed checkout/runtime test coverage.
+- `gradle/libs.versions.toml` and Gradle build files: authoritative dependency/toolchain versions.
+
+Current verified gaps: product quantities are whole-number `Int`; products do not yet carry reusable global brand/type, model, barcode, unit, or typed specifications; checkout writes sale-line rows without a parent sale/receipt entity; product search is limited to name/SKU. These are gaps, not implemented features. Recheck source before relying on this snapshot.
+
+Before changing persistence or checkout, read the database, repository, checkout, mappings, UI, and relevant instrumentation tests together. Keep the product/catalog and sales work scoped to these existing boundaries.
+
 ## Architecture
 - Keep the app offline-first. The local database is the source of truth.
 - Use clear boundaries between UI, domain rules, and persistence. Prefer the simplest structure that supports current needs; do not create abstractions without a concrete use.
