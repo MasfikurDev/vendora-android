@@ -212,7 +212,7 @@ jobs:
           } > BUILD-INFO.txt
 
       - name: Upload APK and notes as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vendora-build-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
