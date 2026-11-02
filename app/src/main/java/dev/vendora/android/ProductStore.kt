@@ -13,6 +13,12 @@ data class Product(
     val quantity: Int,
     val purchasePricePoisha: Long,
     val sellingPricePoisha: Long,
+    val brand: String = "",
+    val model: String = "",
+    val category: String = "",
+    val unit: String = "pcs",
+    val barcode: String = "",
+    val lowStockThreshold: Int = 5,
 )
 
 class ProductStore(context: Context) {
