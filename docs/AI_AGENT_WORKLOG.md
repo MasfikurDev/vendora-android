@@ -100,3 +100,38 @@ Inspected the previously reported CI runs and recorded the verified failing stag
 - Current main instead declares `androidx.lifecycle:lifecycle-runtime:2.9.4`; [#40674001494](https://github.com/MasfikurDev/vendora-android/actions/runs/40674001494) passed on the merged workflow commit and also compiled Android instrumentation-test sources without an emulator.
 
 These historical failures came from older refs and do not prove the current code has the same defect. When diagnosing a run, capture the exact SHA, failing Gradle task, and first actionable error. Do not infer root cause from skipped downstream steps, and do not use emulator startup to solve dependency-resolution or JVM test compilation failures.
+
+
+## Repository review — 2026-11-02
+
+Reviewed the current `main` source and project instructions before the planned catalog/sales work. This section is a point-in-time handoff; verify the active branch and source again before implementation.
+
+### Verified source map
+
+- `VendoraDatabase.kt`: Room database version 1; current persisted entities are shops, products, stock movements, and sale lines. The database builder currently has no registered explicit migration.
+- `VendoraRepository.kt`: repository owns product save/delete, shop-scoped reads, case-insensitive per-shop SKU duplicate validation, initial-stock movement creation, stock adjustment, and legacy SharedPreferences JSON import.
+- `VendoraCheckout.kt`: checkout validates the cart and available stock, then writes sale lines, decrements product quantities, and writes stock movements inside one Room transaction. There is no parent sale/header record or common receipt identifier yet.
+- `VendoraModels.kt`: maps persisted product entities to the UI/domain product model.
+- `ShopDashboard.kt`: contains the shop's Overview, Products, Selling, Activity, and Insights sections; product editor is a fixed-field form. Selling cart quantities are whole-number integers.
+- `ProductStore.kt` and `ShopStore.kt`: SharedPreferences/JSON compatibility stores exist. The Room importer is the migration bridge; do not reactivate parallel persistence without a deliberate design.
+- `VendoraCheckoutInstrumentedTest.kt`: Room-backed runtime tests exist for checkout-critical behavior. Confirm exact test methods and execute emulator tests when persistence/runtime behavior changes.
+- `android.yml`: routine PR verification builds the debug APK, runs JVM tests, compiles Android instrumentation sources, verifies signing, and uploads an artifact. Emulator execution and release publication are manual-dispatch options.
+
+### Verified product and sales gaps
+
+- Product stock quantity is currently `Int`; fractional stock such as 1.5 kg or 0.75 L is not represented.
+- Product records do not currently contain reusable brand/type references, model, barcode, unit metadata, or typed custom specifications.
+- Product and selling search currently use name/SKU, not brand/model/barcode.
+- Sale history is represented by individual `SaleLineEntity` rows without a `SaleEntity` header. Existing sale-line snapshots include product name, SKU, quantity, unit price, unit cost, total, and timestamp.
+- Current schema is Room version 1 and database creation has no explicit migration registration. Any schema extension must include a non-destructive migration and preservation tests for existing records.
+- Existing checkout already uses a transaction. Extend it; do not replace it with a second checkout pathway.
+
+### Approved implementation direction (not yet implemented at this review)
+
+The planned scope is global reusable brands and product types; metadata-driven typed product attributes; product model/barcode/unit fields; fractional stock using integer-scaled storage; a sale header with immutable line snapshots; expanded search; and dynamic product create/edit fields. Keep shop-owned inventory and sales shop-scoped while brands/types/attribute definitions are reusable globally. Keep all money in integer poisha. Checkout must create the sale header, line snapshots, stock deductions, and stock movements atomically.
+
+Do not write these planned capabilities into the README or status snapshot as implemented until source and tests confirm them. Update the architecture/status docs in the same implementation PR, including the actual schema version, migration behavior, and tests run. Prefer one canonical root `AGENTS.md`; do not create duplicate `CLAUDE.md` or Copilot instructions that can drift. Keep this worklog as the dated implementation/handoff history.
+
+### AI context maintenance rule
+
+Whenever a change alters source structure, data models, business invariants, test commands, CI triggers, or release behavior, update the smallest relevant canonical documentation in the same PR. Keep `AGENTS.md` as concise navigation and non-negotiable rules; put durable technical details in architecture docs and verified chronological outcomes in this worklog. Clearly label planned, implemented, and verified behavior separately.
