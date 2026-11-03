@@ -45,16 +45,20 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
     val scope = rememberCoroutineScope()
     var products by remember(shop.id) { mutableStateOf(emptyList<Product>()) }
     var saleLines by remember(shop.id) { mutableStateOf(emptyList<SaleLineEntity>()) }
+    var stockMovements by remember(shop.id) { mutableStateOf(emptyList<StockMovementEntity>()) }
     suspend fun refreshSales() { saleLines = repository.getSaleLines(shop.id) }
+    suspend fun refreshStockMovements() { stockMovements = repository.getStockMovements(shop.id) }
     LaunchedEffect(shop.id) {
         products = repository.getProducts(shop.id).map { it.toProduct() }
         refreshSales()
+        refreshStockMovements()
     }
     var section by remember { mutableStateOf(ShopSection.Overview) }
     var query by remember { mutableStateOf("") }
     var sellQuery by remember(shop.id) { mutableStateOf("") }
     var inventoryFilter by remember(shop.id) { mutableStateOf("All") }
     var showEditor by remember { mutableStateOf(false) }
+    var showStockHistory by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Product?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var productPendingDelete by remember { mutableStateOf<Product?>(null) }
@@ -65,8 +69,8 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
     var checkoutError by remember { mutableStateOf<String?>(null) }
     var checkoutSuccess by remember { mutableStateOf<String?>(null) }
 
-    val lowStock = products.filter { it.quantity <= 5 }
-    val units = products.sumOf { it.quantity }
+    val lowStock = products.filter { it.quantity <= it.lowStockThreshold }
+    val units = products.count { it.quantity > 0 }
     val stockCost = products.sumOf { it.quantity.toLong() * it.purchasePricePoisha }
     val potentialSales = products.sumOf { it.quantity.toLong() * it.sellingPricePoisha }
     val potentialMargin = potentialSales - stockCost
@@ -147,6 +151,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                 onEdit = { editing = it; error = null; showEditor = true },
                 onDelete = { productPendingDelete = it },
                 onAdjustStock = { stockAdjustmentProduct = it; stockAdjustmentError = null },
+                onViewHistory = { showStockHistory = true },
             )
             ShopSection.Selling -> SellingContent(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -175,6 +180,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                             val result = repository.checkout(shop.id, lines)
                             products = repository.getProducts(shop.id).map { it.toProduct() }
                             refreshSales()
+                            refreshStockMovements()
                             cartQuantities = emptyMap()
                             checkoutSuccess = "Sale recorded. Total: ${formatBdt(result.totalPoisha)}"
                         } catch (failure: Exception) {
@@ -211,6 +217,7 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                     runCatching {
                         repository.recordStockAdjustment(shop.id, product.id, quantity, reason)
                         products = repository.getProducts(shop.id).map { it.toProduct() }
+                        refreshStockMovements()
                         stockAdjustmentProduct = null
                     }.onFailure { stockAdjustmentError = it.message ?: "Could not adjust stock." }
                 }
@@ -239,12 +246,19 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
         )
     }
 
+    if (showStockHistory) {
+        StockHistoryDialog(
+            movements = stockMovements,
+            onDismiss = { showStockHistory = false },
+        )
+    }
+
     if (showEditor) {
         ProductEditorDialog(
             initial = editing,
             error = error,
             onDismiss = { showEditor = false },
-            onSave = { name, sku, quantity, purchase, selling ->
+            onSave = { name, sku, brand, model, category, unit, barcode, quantity, lowStockThreshold, purchase, selling ->
                 scope.launch {
                     runCatching {
                         val product = Product(
@@ -255,9 +269,16 @@ fun ShopDashboard(shop: Shop, repository: VendoraRepository, onBack: () -> Unit)
                             quantity = quantity,
                             purchasePricePoisha = purchase,
                             sellingPricePoisha = selling,
+                            brand = brand,
+                            model = model,
+                            category = category,
+                            unit = unit,
+                            barcode = barcode,
+                            lowStockThreshold = lowStockThreshold,
                         )
                         repository.saveProduct(product.toEntity())
                         products = repository.getProducts(shop.id).map { it.toProduct() }
+                        refreshStockMovements()
                         showEditor = false
                     }.onFailure { error = it.message ?: "Could not save product." }
                 }
@@ -281,7 +302,7 @@ private fun SellingContent(
     onCheckout: () -> Unit,
 ) {
     val selected = products.filter { (quantities[it.id] ?: 0) > 0 }
-    val filteredProducts = products.filter { it.name.contains(query, true) || it.sku.contains(query, true) }
+    val filteredProducts = products.filter { listOf(it.name, it.sku, it.brand, it.model, it.category, it.barcode).any { value -> value.contains(query, true) } }
     val total = selected.sumOf { product -> product.sellingPricePoisha * (quantities[product.id] ?: 0).toLong() }
 
     Column(modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
@@ -292,7 +313,7 @@ private fun SellingContent(
             value = query,
             onValueChange = onQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search name or SKU") },
+            placeholder = { Text("Search name, brand, SKU or barcode") },
             leadingIcon = { Text("⌕", style = MaterialTheme.typography.titleLarge, color = DashboardMuted) },
             trailingIcon = {
                 if (query.isNotBlank()) TextButton(onClick = { onQueryChange("") }) { Text("Clear") }
@@ -325,7 +346,9 @@ private fun SellingContent(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(product.name, fontWeight = FontWeight.SemiBold)
-                                    Text("${formatBdt(product.sellingPricePoisha)} each · ${product.quantity} available",
+                                    val details = listOf(product.brand, product.model, product.category, product.sku).filter { it.isNotBlank() }
+                                    if (details.isNotEmpty()) Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("${formatBdt(product.sellingPricePoisha)} per ${product.unit} · ${product.quantity} ${product.unit} available",
                                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -447,6 +470,13 @@ private fun SalesHistoryContent(
                                     if (sale.sku.isNotBlank()) {
                                         Text("SKU: ${sale.sku}", style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
                                     }
+                                    val details = listOf(sale.brand, sale.model, sale.category).filter { it.isNotBlank() }
+                                    if (details.isNotEmpty()) {
+                                        Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
+                                    }
+                                    if (sale.barcode.isNotBlank()) {
+                                        Text("Barcode: ${sale.barcode}", style = MaterialTheme.typography.bodySmall, color = DashboardMuted)
+                                    }
                                 }
                                 Text(
                                     formatBdt(sale.totalPoisha),
@@ -456,7 +486,7 @@ private fun SalesHistoryContent(
                                 )
                             }
                             Text(
-                                "${sale.quantity} × ${formatBdt(sale.unitPricePoisha)}",
+                                "${sale.quantity} ${sale.unit} × ${formatBdt(sale.unitPricePoisha)} per ${sale.unit}",
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
@@ -470,6 +500,63 @@ private fun SalesHistoryContent(
             }
         }
     }
+}
+
+@Composable
+private fun StockHistoryDialog(
+    movements: List<StockMovementEntity>,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Stock history", fontWeight = FontWeight.Bold) },
+        text = {
+            if (movements.isEmpty()) {
+                Text("Opening stock, completed sales, and manual stock adjustments will appear here.")
+            } else {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 440.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    items(movements, key = { it.id }) { movement ->
+                        Card(shape = RoundedCornerShape(14.dp)) {
+                            Column(
+                                Modifier.fillMaxWidth().padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    Text(
+                                        movement.productName,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Text(
+                                        (if (movement.delta > 0) "+" else "") + movement.delta + " " + movement.unit,
+                                        color = if (movement.delta > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                                Text(
+                                    "${movement.quantityBefore} → ${movement.quantityAfter} ${movement.unit}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(movement.reason, style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    SimpleDateFormat("MMM d, yyyy · h:mm a", Locale.getDefault()).format(Date(movement.timestampMillis)),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = DashboardMuted,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+    )
 }
 
 @Composable
@@ -523,13 +610,13 @@ private fun OverviewContent(
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MetricCard("Products", products.size.toString(), "In your catalog", Modifier.weight(1f), DashboardMint)
-            MetricCard("Units in stock", units.toString(), "Across all products", Modifier.weight(1f), Color(0xFFEAF0FB))
+            MetricCard("Products in stock", units.toString(), "Products with positive quantity", Modifier.weight(1f), Color(0xFFEAF0FB))
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text("Stock attention", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Products with 5 or fewer units", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Products at or below their restock threshold", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             TextButton(onClick = onViewInventory) { Text("View all") }
         }
@@ -553,7 +640,7 @@ private fun OverviewContent(
                             Text(product.name, fontWeight = FontWeight.SemiBold)
                             Text("Restock soon", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text("${product.quantity} left", color = Color(0xFF8A5700), fontWeight = FontWeight.Bold)
+                        Text("${product.quantity} ${product.unit} left", color = Color(0xFF8A5700), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -592,12 +679,13 @@ private fun InventoryContent(
     onEdit: (Product) -> Unit,
     onDelete: (Product) -> Unit,
     onAdjustStock: (Product) -> Unit,
+    onViewHistory: () -> Unit,
 ) {
     val filteredProducts = products.filter { product ->
-        (product.name.contains(query, true) || product.sku.contains(query, true)) &&
+        listOf(product.name, product.sku, product.brand, product.model, product.category, product.barcode).any { it.contains(query, true) } &&
             when (filter) {
-                "Low stock" -> product.quantity <= 5
-                "In stock" -> product.quantity > 5
+                "Low stock" -> product.quantity <= product.lowStockThreshold
+                "In stock" -> product.quantity > product.lowStockThreshold
                 else -> true
             }
     }
@@ -606,16 +694,17 @@ private fun InventoryContent(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Inventory", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text("${products.size} products · ${products.sumOf { it.quantity }} units in stock",
+                Text("${products.size} products · quantities tracked per product",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            TextButton(onClick = onViewHistory) { Text("History") }
             FilledTonalButton(onClick = onAddProduct) { Text("+ Add") }
         }
         Spacer(Modifier.height(16.dp))
         OutlinedTextField(
             value = query, onValueChange = onQueryChange,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search products or SKU") },
+            placeholder = { Text("Search name, brand, SKU or barcode") },
             leadingIcon = { Text("⌕", style = MaterialTheme.typography.titleLarge, color = DashboardMuted) },
             trailingIcon = {
                 if (query.isNotBlank()) TextButton(onClick = { onQueryChange("") }) { Text("Clear") }
@@ -653,26 +742,29 @@ private fun InventoryContent(
                                 Column(Modifier.weight(1f)) {
                                     Text(product.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                     if (product.sku.isNotBlank()) Text("SKU: ${product.sku}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    val details = listOf(product.brand, product.model, product.category).filter { it.isNotBlank() }
+                                    if (details.isNotEmpty()) Text(details.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    if (product.barcode.isNotBlank()) Text("Barcode: ${product.barcode}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Surface(
-                                    color = if (product.quantity <= 5) DashboardAmber else DashboardMint,
+                                    color = if (product.quantity <= product.lowStockThreshold) DashboardAmber else DashboardMint,
                                     shape = RoundedCornerShape(10.dp),
                                 ) {
-                                    Text("${product.quantity} in stock", modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                                    Text("${product.quantity} ${product.unit} in stock", modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                             Spacer(Modifier.height(12.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column {
-                                    Text("Purchase", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Purchase / unit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(formatBdt(product.purchasePricePoisha), fontWeight = FontWeight.Medium)
                                 }
                                 Column {
-                                    Text("Selling price", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Selling / unit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(formatBdt(product.sellingPricePoisha), fontWeight = FontWeight.SemiBold, color = DashboardGreen)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("Unit margin", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Margin / unit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(formatBdt(product.sellingPricePoisha - product.purchasePricePoisha), fontWeight = FontWeight.Medium)
                                 }
                             }
@@ -707,13 +799,13 @@ private fun InsightsContent(
         MetricCard("Potential gross margin", formatBdt(potentialMargin), "Before expenses, discounts, and losses", Modifier.fillMaxWidth(), Color(0xFFF4EAFE))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MetricCard("Catalog items", products.size.toString(), "Unique products", Modifier.weight(1f), Color(0xFFF0F3F1))
-            MetricCard("Stock units", units.toString(), "Current quantity", Modifier.weight(1f), Color(0xFFF0F3F1))
+            MetricCard("Products with stock", units.toString(), "Positive stock count", Modifier.weight(1f), Color(0xFFF0F3F1))
         }
         Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = if (lowStock.isNotEmpty()) DashboardAmber else DashboardMint)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Restock watch", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("${lowStock.size} product(s) currently have 5 or fewer units.")
-                lowStock.take(5).forEach { Text("• ${it.name}: ${it.quantity} left", style = MaterialTheme.typography.bodyMedium) }
+                Text("${lowStock.size} product(s) are at or below their individual restock threshold.")
+                lowStock.take(5).forEach { Text("• ${it.name}: ${it.quantity} ${it.unit} left", style = MaterialTheme.typography.bodyMedium) }
             }
         }
     }
@@ -762,11 +854,11 @@ private fun StockAdjustmentDialog(
         title = { Text("Adjust ${product.name} stock", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Current stock: ${product.quantity}")
+                Text("Current stock: ${product.quantity} ${product.unit}")
                 OutlinedTextField(
                     value = quantity,
                     onValueChange = { quantity = it.filter(Char::isDigit).take(9) },
-                    label = { Text("New quantity") },
+                    label = { Text("New quantity (${product.unit})") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                 )
@@ -793,14 +885,21 @@ private fun ProductEditorDialog(
     initial: Product?,
     error: String?,
     onDismiss: () -> Unit,
-    onSave: (String, String, Int, Long, Long) -> Unit,
+    onSave: (String, String, String, String, String, String, String, Int, Int, Long, Long) -> Unit,
 ) {
     var name by remember(initial?.id) { mutableStateOf(initial?.name.orEmpty()) }
     var sku by remember(initial?.id) { mutableStateOf(initial?.sku.orEmpty()) }
+    var brand by remember(initial?.id) { mutableStateOf(initial?.brand.orEmpty()) }
+    var model by remember(initial?.id) { mutableStateOf(initial?.model.orEmpty()) }
+    var category by remember(initial?.id) { mutableStateOf(initial?.category.orEmpty()) }
+    var unit by remember(initial?.id) { mutableStateOf(initial?.unit ?: "pcs") }
+    var barcode by remember(initial?.id) { mutableStateOf(initial?.barcode.orEmpty()) }
     var quantity by remember(initial?.id) { mutableStateOf(initial?.quantity?.toString() ?: "0") }
+    var lowStockThreshold by remember(initial?.id) { mutableStateOf(initial?.lowStockThreshold?.toString() ?: "5") }
     var purchase by remember(initial?.id) { mutableStateOf(initial?.purchasePricePoisha?.let { (it / 100.0).toString() } ?: "") }
     var selling by remember(initial?.id) { mutableStateOf(initial?.sellingPricePoisha?.let { (it / 100.0).toString() } ?: "") }
     val valid = name.isNotBlank() && (quantity.toIntOrNull() ?: -1) >= 0 &&
+        (lowStockThreshold.toIntOrNull() ?: -1) >= 0 && unit.isNotBlank() &&
         parsePoisha(purchase) != null && parsePoisha(selling) != null
 
     AlertDialog(
@@ -812,7 +911,12 @@ private fun ProductEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Product name *") }, singleLine = true)
+                OutlinedTextField(brand, { brand = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Brand (optional)") }, singleLine = true)
+                OutlinedTextField(model, { model = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Model / variant (optional)") }, singleLine = true)
+                OutlinedTextField(category, { category = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Category (optional)") }, singleLine = true)
+                OutlinedTextField(unit, { unit = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Stock unit (e.g. pcs, kg, litre, box)") }, singleLine = true)
                 OutlinedTextField(sku, { sku = it }, modifier = Modifier.fillMaxWidth(), label = { Text("SKU (optional)") }, singleLine = true)
+                OutlinedTextField(barcode, { barcode = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Barcode (optional)") }, singleLine = true)
                 if (initial == null) {
                     OutlinedTextField(
                         quantity,
@@ -824,20 +928,27 @@ private fun ProductEditorDialog(
                     )
                 } else {
                     Text(
-                        "Current stock: ${initial.quantity} units. Use Adjust stock to record any quantity change.",
+                        "Current stock: ${initial.quantity} ${initial.unit}. Use Adjust stock to record any quantity change.",
                         style = MaterialTheme.typography.bodySmall,
                         color = DashboardMuted,
                     )
                 }
-                OutlinedTextField(purchase, { purchase = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Purchase price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
-                OutlinedTextField(selling, { selling = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Selling price (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
+                OutlinedTextField(lowStockThreshold, { lowStockThreshold = it.filter(Char::isDigit) }, modifier = Modifier.fillMaxWidth(), label = { Text("Low-stock alert quantity") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true)
+                OutlinedTextField(purchase, { purchase = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Purchase price per unit (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
+                OutlinedTextField(selling, { selling = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Selling price per unit (৳)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
                 if (error != null) Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
         },
         confirmButton = {
             Button(
                 enabled = valid,
-                onClick = { onSave(name.trim(), sku.trim(), quantity.toInt(), parsePoisha(purchase)!!, parsePoisha(selling)!!) },
+                onClick = {
+                    onSave(
+                        name.trim(), sku.trim(), brand.trim(), model.trim(), category.trim(),
+                        unit.trim(), barcode.trim(), quantity.toInt(), lowStockThreshold.toInt(),
+                        parsePoisha(purchase)!!, parsePoisha(selling)!!,
+                    )
+                },
             ) { Text("Save product") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },

@@ -1,5 +1,6 @@
 package dev.vendora.android
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -24,7 +25,7 @@ data class ShopEntity(
 
 @Entity(
     tableName = "products",
-    indices = [Index(value = ["shopId"]), Index(value = ["shopId", "sku"])],
+    indices = [Index(value = ["shopId"]), Index(value = ["shopId", "sku"]), Index(value = ["shopId", "barcode"])],
 )
 data class ProductEntity(
     @PrimaryKey val id: String,
@@ -34,6 +35,12 @@ data class ProductEntity(
     val quantity: Int,
     val purchasePricePoisha: Long,
     val sellingPricePoisha: Long,
+    @ColumnInfo(defaultValue = "''") val brand: String = "",
+    @ColumnInfo(defaultValue = "''") val model: String = "",
+    @ColumnInfo(defaultValue = "''") val category: String = "",
+    @ColumnInfo(defaultValue = "'pcs'") val unit: String = "pcs",
+    @ColumnInfo(defaultValue = "''") val barcode: String = "",
+    @ColumnInfo(defaultValue = "5") val lowStockThreshold: Int = 5,
 )
 
 @Entity(
@@ -53,6 +60,7 @@ data class StockMovementEntity(
     val quantityAfter: Int,
     val reason: String,
     val timestampMillis: Long,
+    @ColumnInfo(defaultValue = "'pcs'") val unit: String = "pcs",
 )
 
 @Entity(
@@ -73,6 +81,11 @@ data class SaleLineEntity(
     val unitCostPoisha: Long,
     val totalPoisha: Long,
     val timestampMillis: Long,
+    @ColumnInfo(defaultValue = "''") val brand: String = "",
+    @ColumnInfo(defaultValue = "''") val model: String = "",
+    @ColumnInfo(defaultValue = "''") val category: String = "",
+    @ColumnInfo(defaultValue = "'pcs'") val unit: String = "pcs",
+    @ColumnInfo(defaultValue = "''") val barcode: String = "",
 )
 
 @Dao
@@ -94,6 +107,9 @@ interface VendoraDao {
 
     @Query("SELECT * FROM products WHERE id = :productId AND shopId = :shopId LIMIT 1")
     suspend fun getProduct(shopId: String, productId: String): ProductEntity?
+
+    @Query("SELECT * FROM products WHERE shopId = :shopId AND barcode = :barcode AND barcode != '' ORDER BY name COLLATE NOCASE")
+    suspend fun getProductsByBarcode(shopId: String, barcode: String): List<ProductEntity>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertProduct(product: ProductEntity)
@@ -130,7 +146,7 @@ interface VendoraDao {
         StockMovementEntity::class,
         SaleLineEntity::class,
     ],
-    version = 1,
+    version = 3,
     exportSchema = false,
 )
 abstract class VendoraDatabase : RoomDatabase() {

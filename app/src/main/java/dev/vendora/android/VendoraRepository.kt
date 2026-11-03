@@ -2,12 +2,37 @@ package dev.vendora.android
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
 import androidx.room.withTransaction
+import androidx.sqlite.db.SupportSQLiteDatabase
 import org.json.JSONArray
 import java.io.IOException
 import java.util.UUID
 
 object VendoraDatabaseProvider {
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE products ADD COLUMN brand TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE products ADD COLUMN model TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE products ADD COLUMN unit TEXT NOT NULL DEFAULT 'pcs'")
+            database.execSQL("ALTER TABLE products ADD COLUMN barcode TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE products ADD COLUMN lowStockThreshold INTEGER NOT NULL DEFAULT 5")
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_products_shopId_barcode ON products (shopId, barcode)")
+        }
+    }
+
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE stock_movements ADD COLUMN unit TEXT NOT NULL DEFAULT 'pcs'")
+            database.execSQL("ALTER TABLE sale_lines ADD COLUMN brand TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE sale_lines ADD COLUMN model TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE sale_lines ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+            database.execSQL("ALTER TABLE sale_lines ADD COLUMN unit TEXT NOT NULL DEFAULT 'pcs'")
+            database.execSQL("ALTER TABLE sale_lines ADD COLUMN barcode TEXT NOT NULL DEFAULT ''")
+        }
+    }
+
     @Volatile private var instance: VendoraDatabase? = null
 
     fun get(context: Context): VendoraDatabase =
@@ -16,7 +41,7 @@ object VendoraDatabaseProvider {
                 context.applicationContext,
                 VendoraDatabase::class.java,
                 "vendora.db",
-            ).build().also { instance = it }
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
         }
 }
 
@@ -77,10 +102,16 @@ class LegacyDataImporter(context: Context) {
                 val quantity = if (item.has("quantity")) item.optInt("quantity", -1) else -1
                 val cost = if (item.has("purchasePricePoisha")) item.optLong("purchasePricePoisha", -1L) else -1L
                 val price = if (item.has("sellingPricePoisha")) item.optLong("sellingPricePoisha", -1L) else -1L
-                if (id.isBlank() || shopId.isBlank() || name.isBlank() || quantity < 0 || cost < 0L || price < 0L) {
+                val brand = item.optString("brand").trim()
+                val model = item.optString("model").trim()
+                val category = item.optString("category").trim()
+                val unit = item.optString("unit", "pcs").trim().ifBlank { "pcs" }
+                val barcode = item.optString("barcode").trim()
+                val lowStockThreshold = item.optInt("lowStockThreshold", 5)
+                if (id.isBlank() || shopId.isBlank() || name.isBlank() || quantity < 0 || cost < 0L || price < 0L || lowStockThreshold < 0) {
                     throw IOException("Saved product record $index is invalid. Original data was preserved.")
                 }
-                add(ProductEntity(id, shopId, name, sku, quantity, cost, price))
+                add(ProductEntity(id, shopId, name, sku, quantity, cost, price, brand, model, category, unit, barcode, lowStockThreshold))
             }
         }
     }
@@ -123,11 +154,22 @@ class VendoraRepository(
         return dao.getProduct(shopId, productId)
     }
 
+    suspend fun getProductsByBarcode(shopId: String, barcode: String): List<ProductEntity> {
+        require(shopId.isNotBlank()) { "A shop is required." }
+        require(barcode.isNotBlank()) { "A barcode is required." }
+        return dao.getProductsByBarcode(shopId, barcode.trim())
+    }
+
     suspend fun saveProduct(product: ProductEntity, timestampMillis: Long = System.currentTimeMillis()) {
         require(product.shopId.isNotBlank() && product.name.isNotBlank()) { "A shop and product name are required." }
         require(product.quantity >= 0) { "Stock cannot be negative." }
+        require(product.lowStockThreshold >= 0) { "Low-stock threshold cannot be negative." }
         require(product.purchasePricePoisha >= 0L && product.sellingPricePoisha >= 0L) { "Prices cannot be negative." }
-        val normalized = product.copy(name = product.name.trim(), sku = product.sku.trim())
+        val normalized = product.copy(
+            name = product.name.trim(), sku = product.sku.trim(), brand = product.brand.trim(),
+            model = product.model.trim(), category = product.category.trim(),
+            unit = product.unit.trim().ifBlank { "pcs" }, barcode = product.barcode.trim(),
+        )
         database.withTransaction {
             val duplicateSku = dao.getProducts(normalized.shopId).any {
                 it.id != normalized.id && normalized.sku.isNotBlank() &&
@@ -148,6 +190,7 @@ class VendoraRepository(
                         quantityAfter = normalized.quantity,
                         reason = "Initial stock",
                         timestampMillis = timestampMillis,
+                        unit = normalized.unit,
                     )))
                 }
             } else {
@@ -184,6 +227,7 @@ class VendoraRepository(
                     id = UUID.randomUUID().toString(), shopId = shopId, productId = product.id,
                     productName = product.name, delta = delta, quantityBefore = product.quantity,
                     quantityAfter = newQuantity, reason = reason.trim(), timestampMillis = timestampMillis,
+                    unit = product.unit,
                 )))
             }
         }

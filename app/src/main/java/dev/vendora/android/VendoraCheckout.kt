@@ -67,6 +67,11 @@ suspend fun VendoraRepository.checkout(
                 unitCostPoisha = product.purchasePricePoisha,
                 totalPoisha = amounts.second,
                 timestampMillis = timestampMillis,
+                brand = product.brand,
+                model = product.model,
+                category = product.category,
+                unit = product.unit,
+                barcode = product.barcode,
             )
         }
         val movements = prepared.map { (line, product, _) ->
@@ -80,6 +85,7 @@ suspend fun VendoraRepository.checkout(
                 quantityAfter = product.quantity - line.quantity,
                 reason = "Sale",
                 timestampMillis = timestampMillis,
+                unit = product.unit,
             )
         }
         val total = try {

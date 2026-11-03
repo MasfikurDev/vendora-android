@@ -152,6 +152,7 @@ class VendoraCheckoutInstrumentedTest {
         assertEquals(2, movement.quantityAfter)
         assertEquals("Damaged items", movement.reason)
         assertEquals(250L, movement.timestampMillis)
+        assertEquals("pcs", movement.unit)
     }
 
     @Test
@@ -221,6 +222,46 @@ class VendoraCheckoutInstrumentedTest {
         assertEquals(1, shopBSales.size)
         assertEquals("product-b", shopBSales.single().productId)
         assertEquals(2, shopBSales.single().quantity)
+    }
+
+    @Test
+    fun productDetailsPersistAndBarcodeLookupStaysShopScoped() = runBlocking {
+        seedShopAndProduct(shopId = "shop-a", productId = "product-a", quantity = 4)
+        seedShopAndProduct(shopId = "shop-b", productId = "product-b", quantity = 3)
+
+        val existing = dao.getProduct("shop-a", "product-a")!!
+        repository.saveProduct(existing.copy(
+            brand = "Example brand",
+            model = "Model X",
+            category = "Electronics",
+            unit = "pcs",
+            barcode = "123456789",
+            lowStockThreshold = 2,
+        ))
+
+        val saved = dao.getProduct("shop-a", "product-a")!!
+        assertEquals("Example brand", saved.brand)
+        assertEquals("Model X", saved.model)
+        assertEquals("Electronics", saved.category)
+        assertEquals("pcs", saved.unit)
+        assertEquals("123456789", saved.barcode)
+        assertEquals(2, saved.lowStockThreshold)
+        assertEquals(listOf("product-a"), repository.getProductsByBarcode("shop-a", "123456789").map { it.id })
+        assertTrue(repository.getProductsByBarcode("shop-b", "123456789").isEmpty())
+
+        repository.checkout("shop-a", listOf(CheckoutLine("product-a", 1)))
+        val saleSnapshot = dao.getSaleLines("shop-a").single()
+        assertEquals("Example brand", saleSnapshot.brand)
+        assertEquals("Model X", saleSnapshot.model)
+        assertEquals("Electronics", saleSnapshot.category)
+        assertEquals("pcs", saleSnapshot.unit)
+        assertEquals("123456789", saleSnapshot.barcode)
+
+        val currentProduct = dao.getProduct("shop-a", "product-a")!!
+        repository.saveProduct(currentProduct.copy(brand = "Changed later", unit = "box"))
+        assertEquals("Example brand", dao.getSaleLines("shop-a").single().brand)
+        assertEquals("pcs", dao.getSaleLines("shop-a").single().unit)
+        assertEquals("pcs", dao.getStockMovements("shop-a").last().unit)
     }
 
     private suspend fun seedShopAndProduct(shopId: String, productId: String, quantity: Int) {
